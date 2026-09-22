@@ -8,6 +8,44 @@ export interface ApiError {
   details?: Record<string, unknown>;
 }
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  fullName?: string | null;
+  role: 'STUDENT' | 'TEACHER' | 'ADMIN';
+}
+
+export interface AuthSession {
+  token: string;
+  user: AuthUser;
+}
+
+const TOKEN_KEY = 'edunexa_token';
+const USER_KEY = 'edunexa_user';
+
+export function getSession(): AuthSession | null {
+  if (typeof window === 'undefined') return null;
+  const token = localStorage.getItem(TOKEN_KEY);
+  const rawUser = localStorage.getItem(USER_KEY);
+  if (!token || !rawUser) return null;
+  try {
+    return { token, user: JSON.parse(rawUser) as AuthUser };
+  } catch {
+    clearSession();
+    return null;
+  }
+}
+
+export function setSession(session: AuthSession) {
+  localStorage.setItem(TOKEN_KEY, session.token);
+  localStorage.setItem(USER_KEY, JSON.stringify(session.user));
+}
+
+export function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
 /**
  * Minimal API client using the platform's { data, meta, error } envelope.
  * Throws on network failure or API error so TanStack Query can surface them.

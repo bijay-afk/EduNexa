@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, setSession, type AuthSession } from '@/lib/api';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from '@edunexa/ui';
 import { useRouter } from 'next/navigation';
 
@@ -17,11 +17,12 @@ export default function RegisterPage() {
     setLoading(true);
     setError(null);
     try {
-      await apiRequest<{ token: string }>('/auth/register', {
+      const res = await apiRequest<AuthSession>('/auth/register', {
         method: 'POST',
         body: JSON.stringify(form),
       });
-      router.push('/app');
+      setSession(res);
+      router.push(res.user.role === 'TEACHER' ? '/teacher' : '/app');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {

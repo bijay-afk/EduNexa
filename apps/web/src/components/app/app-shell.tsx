@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Bell,
   Bookmark,
@@ -7,10 +10,13 @@ import {
   ClipboardList,
   LayoutDashboard,
   LineChart,
+  LogOut,
   Settings,
   Timer,
   User,
+  UserRound,
 } from 'lucide-react';
+import { clearSession, getSession } from '@/lib/api';
 
 const nav = [
   { href: '/app', label: 'Dashboard', icon: LayoutDashboard },
@@ -25,11 +31,37 @@ const nav = [
   { href: '/app/settings', label: 'Settings', icon: Settings },
 ];
 
+function LogoutButton() {
+  const router = useRouter();
+  function onLogout() {
+    clearSession();
+    router.push('/login');
+  }
+  return (
+    <button
+      type="button"
+      onClick={onLogout}
+      className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+    >
+      <LogOut className="h-4 w-4" aria-hidden />
+      Sign out
+    </button>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const session = getSession();
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 gap-8 px-4 py-8">
       <aside className="hidden w-56 shrink-0 lg:block" aria-label="Student navigation">
         <nav className="sticky top-20 space-y-1">
+          {session?.user.fullName ? (
+            <div className="flex items-center gap-2 rounded-md px-3 py-2 text-sm">
+              <UserRound className="h-4 w-4 text-muted-foreground" aria-hidden />
+              <span className="truncate font-medium">{session.user.fullName}</span>
+            </div>
+          ) : null}
           {nav.map((item) => (
             <Link
               key={item.href}
@@ -40,6 +72,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {item.label}
             </Link>
           ))}
+          <LogoutButton />
         </nav>
       </aside>
       <div className="min-w-0 flex-1">{children}</div>
@@ -48,6 +81,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 export function MobileAppNav() {
+  const router = useRouter();
+  function onLogout() {
+    clearSession();
+    router.push('/login');
+  }
   return (
     <details className="mb-4 lg:hidden">
       <summary className="cursor-pointer rounded-md border bg-card px-3 py-2 text-sm font-medium">
@@ -64,6 +102,14 @@ export function MobileAppNav() {
             {item.label}
           </Link>
         ))}
+        <button
+          type="button"
+          onClick={onLogout}
+          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent"
+        >
+          <LogOut className="h-4 w-4" aria-hidden />
+          Sign out
+        </button>
       </nav>
     </details>
   );

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from '@edunexa/ui';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, setSession, type AuthSession } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,12 +18,11 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiRequest<{ token: string; user: { role: string } }>('/auth/login', {
+      const res = await apiRequest<AuthSession>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
-      localStorage.setItem('edunexa_token', res.token);
-      localStorage.setItem('edunexa_user', JSON.stringify(res.user));
+      setSession(res);
       router.push(res.user.role === 'TEACHER' ? '/teacher' : '/app');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
