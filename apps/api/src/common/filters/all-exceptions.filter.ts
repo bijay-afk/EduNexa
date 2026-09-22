@@ -33,7 +33,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           details?: Record<string, unknown>;
         };
         error = {
-          code: typeof body.error === 'string' ? body.error.toUpperCase() : this.codeFor(status),
+          code: this.codeFor(status, body.error),
           message: Array.isArray(body.message) ? body.message.join(', ') : (body.message ?? body.error ?? 'Request failed'),
           details: body.details,
         };
@@ -54,7 +54,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     });
   }
 
-  private codeFor(status: number): string {
+  private codeFor(status: number, error?: string): string {
+    if (typeof error === 'string' && error.trim()) {
+      return error.replace(/\s+/g, '_').toUpperCase();
+    }
     switch (status) {
       case HttpStatus.BAD_REQUEST:
         return 'VALIDATION_ERROR';

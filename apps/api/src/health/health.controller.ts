@@ -2,17 +2,20 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { Redis } from 'ioredis';
+import { Public } from '../common/decorators/public.decorator';
 
 @ApiTags('health')
 @Controller()
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
+  @Public()
   @Get('health')
   health() {
     return { status: 'ok', uptime: process.uptime() };
   }
 
+  @Public()
   @Get('ready')
   async ready() {
     const checks: Record<string, string> = {};
