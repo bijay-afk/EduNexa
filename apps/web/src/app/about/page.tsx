@@ -8,7 +8,7 @@ export default function AboutPage() {
       <h1 className="text-3xl font-bold">About the platform</h1>
       <div className="mt-6 space-y-4 text-muted-foreground">
         <p>
-          Class 10 Learning Platform organises the complete approved grade-10 curriculum into a
+          EduNexa organises the complete approved grade-10 curriculum into a
           structured digital learning environment. Students browse subjects, chapters, and topics;
           study notes and examples; practise with exercises and quizzes; and take full mock exams
           with progress tracking and weak-topic detection.

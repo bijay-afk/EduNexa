@@ -8,7 +8,7 @@ export default function PrivacyPage() {
       <h1 className="text-3xl font-bold">Privacy Policy</h1>
       <div className="mt-6 space-y-4 text-sm text-muted-foreground">
         <p>
-          This placeholder summarises the privacy commitments for the Class 10 Learning Platform.
+          This placeholder summarises the privacy commitments for EduNexa.
           A full policy will be published on launch.
         </p>
         <p>

@@ -12,17 +12,40 @@ import {
   Progress,
   Skeleton,
 } from '@edunexa/ui';
+import { Flame, Library, Timer } from 'lucide-react';
+import { getSession } from '@/lib/api';
 import { useSubjects } from '@/lib/queries';
 
 export default function DashboardPage() {
   const { data, isLoading, isError, error } = useSubjects();
   const subjects = data?.items ?? [];
+  const firstName = getSession()?.user.fullName?.trim().split(/\s+/)[0];
+
+  const stats = [
+    { icon: Library, label: 'Subjects available', value: subjects.length || '—' },
+    { icon: Timer, label: 'Quizzes ready', value: '3' },
+    { icon: Flame, label: 'Study streak', value: '6 days' },
+  ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Welcome back</h1>
+        <h1 className="text-2xl font-bold">Welcome back{firstName ? `, ${firstName}` : ''}</h1>
         <p className="text-muted-foreground">Here is what is happening in your study plan today.</p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        {stats.map((stat) => (
+          <Card key={stat.label}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <stat.icon className="h-4 w-4 text-primary" aria-hidden />
+                {stat.value}
+              </CardTitle>
+              <CardDescription>{stat.label}</CardDescription>
+            </CardHeader>
+          </Card>
+        ))}
       </div>
 
       <Card>

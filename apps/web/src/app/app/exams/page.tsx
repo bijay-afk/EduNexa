@@ -1,4 +1,5 @@
-import { Badge, Card, CardDescription, CardHeader, CardTitle } from '@edunexa/ui';
+import Link from 'next/link';
+import { Badge, Button, Card, CardDescription, CardHeader, CardTitle } from '@edunexa/ui';
 
 export const metadata = { title: 'Mock Exams' };
 
@@ -11,21 +12,32 @@ const exams = [
 export default function ExamsPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Mock examinations</h1>
-      <p className="text-muted-foreground">
-        Exams run on a server-authoritative timer with question navigation and auto-submit.
-      </p>
+      <div>
+        <h1 className="text-2xl font-bold">Mock examinations</h1>
+        <p className="text-muted-foreground">
+          Exams run on a server-authoritative timer with question navigation and auto-submit.
+        </p>
+      </div>
       <div className="grid gap-4">
         {exams.map((exam) => (
           <Card key={exam.title}>
             <CardHeader>
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <CardTitle>{exam.title}</CardTitle>
                   <CardDescription>{exam.detail}</CardDescription>
                 </div>
-                <Badge>{exam.status}</Badge>
+                <Badge variant={exam.status === 'Available' ? 'default' : 'secondary'}>
+                  {exam.status}
+                </Badge>
               </div>
+              {exam.status === 'Available' ? (
+                <div className="pt-1">
+                  <Button size="sm" variant="outline">
+                    <Link href="/app/quiz">Start practice</Link>
+                  </Button>
+                </div>
+              ) : null}
             </CardHeader>
           </Card>
         ))}

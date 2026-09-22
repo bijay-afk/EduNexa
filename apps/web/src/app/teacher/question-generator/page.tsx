@@ -98,7 +98,7 @@ export default function QuestionGeneratorPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-10">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">AI question generator</h1>
         <p className="text-muted-foreground">

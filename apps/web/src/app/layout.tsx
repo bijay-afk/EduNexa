@@ -6,11 +6,11 @@ import { SiteFooter } from '@/components/site-footer';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Class 10 Learning Platform',
-    template: '%s · Class 10 Learning Platform',
+    default: 'EduNexa — Class 10 Learning Platform',
+    template: '%s · EduNexa',
   },
   description:
-    'Syllabus-structured learning for Class 10: notes, examples, quizzes, mock exams, and teacher question generation grounded in the approved curriculum.',
+    'EduNexa — syllabus-structured learning for Class 10: notes, examples, quizzes, mock exams, and teacher question generation grounded in the approved curriculum.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

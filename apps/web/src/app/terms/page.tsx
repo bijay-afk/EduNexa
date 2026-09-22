@@ -8,7 +8,7 @@ export default function TermsPage() {
       <h1 className="text-3xl font-bold">Terms of Use</h1>
       <div className="mt-6 space-y-4 text-sm text-muted-foreground">
         <p>
-          This placeholder outlines the terms under which the Class 10 Learning Platform operates. A
+          This placeholder outlines the terms under which EduNexa operates. A
           complete terms page will be published on launch.
         </p>
         <p>
