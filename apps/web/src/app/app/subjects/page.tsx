@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardDescription, CardHeader, CardTitle, Skeleton } from '@class10/ui';
+import { Card, CardDescription, CardHeader, CardTitle, Skeleton } from '@edunexa/ui';
 import { useSubjects } from '@/lib/queries';
 
 export default function SubjectsPage() {

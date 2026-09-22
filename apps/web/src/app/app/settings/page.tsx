@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@class10/ui';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@edunexa/ui';
 
 export const metadata = { title: 'Settings' };
 

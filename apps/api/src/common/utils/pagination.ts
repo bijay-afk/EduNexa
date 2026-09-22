@@ -1,4 +1,4 @@
-import type { PaginationMeta } from '@class10/types';
+import type { PaginationMeta } from '@edunexa/types';
 
 export interface PaginationOptions {
   page: number;

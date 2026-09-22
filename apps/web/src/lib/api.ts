@@ -1,4 +1,4 @@
-export { cn } from '@class10/ui';
+export { cn } from '@edunexa/ui';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 

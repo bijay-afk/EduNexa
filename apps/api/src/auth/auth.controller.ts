@@ -4,7 +4,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { registerSchema, loginSchema } from '@class10/validation';
+import { registerSchema, loginSchema } from '@edunexa/validation';
 
 @ApiTags('auth')
 @Public()

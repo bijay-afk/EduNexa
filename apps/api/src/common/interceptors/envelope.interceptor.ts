@@ -1,7 +1,7 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import type { ApiEnvelope } from '@class10/types';
+import type { ApiEnvelope } from '@edunexa/types';
 
 /** Wrap successful responses in the standard { data, meta, error } envelope (spec §58). */
 @Injectable()

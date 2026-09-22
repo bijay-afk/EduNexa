@@ -1,4 +1,4 @@
-import { Progress } from '@class10/ui';
+import { Progress } from '@edunexa/ui';
 
 export const metadata = { title: 'Progress' };
 

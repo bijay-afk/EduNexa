@@ -13,15 +13,15 @@ export default function ContactPage() {
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border bg-card p-5 text-sm shadow-sm">
           <p className="font-semibold">Support</p>
-          <p className="mt-1 text-muted-foreground">support@class10.example</p>
+          <p className="mt-1 text-muted-foreground">support@edunexa.example</p>
         </div>
         <div className="rounded-lg border bg-card p-5 text-sm shadow-sm">
           <p className="font-semibold">Schools</p>
-          <p className="mt-1 text-muted-foreground">partners@class10.example</p>
+          <p className="mt-1 text-muted-foreground">partners@edunexa.example</p>
         </div>
         <div className="rounded-lg border bg-card p-5 text-sm shadow-sm">
           <p className="font-semibold">Content</p>
-          <p className="mt-1 text-muted-foreground">content@class10.example</p>
+          <p className="mt-1 text-muted-foreground">content@edunexa.example</p>
         </div>
       </div>
     </div>

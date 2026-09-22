@@ -1,4 +1,4 @@
-import { Badge } from '@class10/ui';
+import { Badge } from '@edunexa/ui';
 import { Formula } from '@/components/math/formula';
 import type { ContentBlock } from '@/lib/api';
 

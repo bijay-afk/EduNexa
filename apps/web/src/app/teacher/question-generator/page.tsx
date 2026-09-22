@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import type { QuestionType } from '@class10/types';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from '@class10/ui';
+import type { QuestionType } from '@edunexa/types';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from '@edunexa/ui';
 import { apiRequest } from '@/lib/api';
 
 const questionTypes: QuestionType[] = ['MCQ', 'SHORT_ANSWER', 'LONG_ANSWER', 'NUMERICAL'];
@@ -73,7 +73,7 @@ export default function QuestionGeneratorPage() {
       includeHints: false,
     };
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('class10_token') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('edunexa_token') : null;
     try {
       const res = await apiRequest<{ id: string; state: string }>('/question-generation', {
         method: 'POST',

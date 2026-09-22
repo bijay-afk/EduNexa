@@ -1,5 +1,5 @@
 {
-  "name": "@class10/web",
+  "name": "@edunexa/web",
   "version": "0.1.0",
   "private": true,
   "description": "Student + Teacher web app (Next.js, PWA-ready) for the Class 10 Learning Platform",
@@ -11,9 +11,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@class10/types": "*",
-    "@class10/ui": "*",
-    "@class10/validation": "*",
+    "@edunexa/types": "*",
+    "@edunexa/ui": "*",
+    "@edunexa/validation": "*",
     "@tanstack/react-query": "^5.62.0",
     "katex": "^0.16.21",
     "lucide-react": "^0.469.0",

@@ -23,4 +23,4 @@ export function getRequiredEnv(name: string): string {
 export const API_PREFIX = '/api/v1';
 export const PORT = 3000;
 export const BCRYPT_ROUNDS = 12;
-export const SESSION_COOKIE = 'class10_session';
+export const SESSION_COOKIE = 'edunexa_session';

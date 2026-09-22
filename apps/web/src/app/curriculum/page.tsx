@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Button } from '@class10/ui';
+import { Button } from '@edunexa/ui';
 
 export const metadata: Metadata = { title: 'Curriculum' };
 

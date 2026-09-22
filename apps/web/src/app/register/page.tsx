@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { apiRequest } from '@/lib/api';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from '@class10/ui';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from '@edunexa/ui';
 import { useRouter } from 'next/navigation';
 
 export default function RegisterPage() {

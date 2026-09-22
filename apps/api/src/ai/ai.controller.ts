@@ -3,7 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, type AuthenticatedUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { AiService } from './ai.service';
-import { UserRole } from '@class10/types';
+import { UserRole } from '@edunexa/types';
 
 @ApiTags('question-generation')
 @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.SUPER_ADMIN)

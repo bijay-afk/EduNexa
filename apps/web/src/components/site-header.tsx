@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { GraduationCap } from 'lucide-react';
-import { Button } from '@class10/ui';
+import { Button } from '@edunexa/ui';
 
 const nav = [
   { href: '/', label: 'Home' },

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { BookOpen, BrainCircuit, ClipboardList, LineChart, Sparkles, Timer } from 'lucide-react';
-import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@class10/ui';
+import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@edunexa/ui';
 
 const features = [
   {

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { use } from 'react';
-import { Button, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@class10/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@edunexa/ui';
 import { ContentBlocks } from '@/components/content/content-blocks';
 import { useTopic, useTopicContent } from '@/lib/queries';
 import type { ContentBlock } from '@/lib/api';

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiQueueService } from './ai-queue.service';
-import { questionGenerationConfigSchema } from '@class10/validation';
+import { questionGenerationConfigSchema } from '@edunexa/validation';
 
 @Injectable()
 export class AiService {

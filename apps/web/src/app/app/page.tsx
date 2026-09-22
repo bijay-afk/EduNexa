@@ -11,7 +11,7 @@ import {
   CardTitle,
   Progress,
   Skeleton,
-} from '@class10/ui';
+} from '@edunexa/ui';
 import { useSubjects } from '@/lib/queries';
 
 export default function DashboardPage() {

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { use } from 'react';
-import { Card, CardContent, Skeleton } from '@class10/ui';
+import { Card, CardContent, Skeleton } from '@edunexa/ui';
 import { useChapter } from '@/lib/queries';
 
 export default function ChapterPage({ params }: { params: Promise<{ id: string }> }) {

@@ -5,7 +5,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { QuestionsService } from './questions.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
-import { UserRole } from '@class10/types';
+import { UserRole } from '@edunexa/types';
 
 @ApiTags('questions')
 @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.SUPER_ADMIN)

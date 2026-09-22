@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import type { ApiErrorShape } from '@class10/types';
+import type { ApiErrorShape } from '@edunexa/types';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {

@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import { AppModule } from '../src/app.module';
-import { API_PREFIX } from '@class10/config';
+import { API_PREFIX } from '@edunexa/config';
 
 // Requires Postgres + Redis. Provisioned in CI via services; skip locally when absent.
 const hasDb = !!process.env.DATABASE_URL;

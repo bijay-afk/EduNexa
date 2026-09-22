@@ -1,4 +1,4 @@
-import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@class10/ui';
+import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@edunexa/ui';
 
 export const metadata = { title: 'Quiz' };
 

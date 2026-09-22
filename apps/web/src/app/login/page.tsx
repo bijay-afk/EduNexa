@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from '@class10/ui';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from '@edunexa/ui';
 import { apiRequest } from '@/lib/api';
 
 export default function LoginPage() {
@@ -22,8 +22,8 @@ export default function LoginPage() {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
-      localStorage.setItem('class10_token', res.token);
-      localStorage.setItem('class10_user', JSON.stringify(res.user));
+      localStorage.setItem('edunexa_token', res.token);
+      localStorage.setItem('edunexa_user', JSON.stringify(res.user));
       router.push(res.user.role === 'TEACHER' ? '/teacher' : '/app');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');

@@ -1,4 +1,4 @@
-import { Card, CardContent } from '@class10/ui';
+import { Card, CardContent } from '@edunexa/ui';
 
 export const metadata = { title: 'Bookmarks' };
 

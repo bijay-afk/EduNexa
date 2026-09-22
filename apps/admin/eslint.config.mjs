@@ -1,4 +1,4 @@
-import base from '@class10/eslint-config';
+import base from '@edunexa/eslint-config';
 
 export default [
   ...base,

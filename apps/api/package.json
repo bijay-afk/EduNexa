@@ -1,5 +1,5 @@
 {
-  "name": "@class10/api",
+  "name": "@edunexa/api",
   "version": "0.1.0",
   "private": true,
   "description": "NestJS API for the Class 10 Learning Platform",
@@ -18,9 +18,9 @@
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@class10/config": "*",
-    "@class10/types": "*",
-    "@class10/validation": "*",
+    "@edunexa/config": "*",
+    "@edunexa/types": "*",
+    "@edunexa/validation": "*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",

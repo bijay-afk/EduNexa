@@ -1,5 +1,5 @@
 {
-  "name": "@class10/admin",
+  "name": "@edunexa/admin",
   "version": "0.1.0",
   "private": true,
   "description": "Administration app for the Class 10 Learning Platform (super-admin / admin)",

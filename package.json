@@ -1,8 +1,8 @@
 {
-  "name": "class10-platform",
+  "name": "edunexa",
   "version": "0.1.0",
   "private": true,
-  "description": "Class 10 Learning Platform — modular monolith monorepo (Next.js + NestJS)",
+  "description": "EduNexa — Class 10 Learning Platform (modular monolith monorepo: Next.js + NestJS)",
   "workspaces": [
     "apps/*",
     "packages/*"
