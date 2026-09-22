@@ -1,0 +1,14 @@
+{
+  "name": "@class10/eslint-config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "peerDependencies": {
+    "eslint": "^9.20.0",
+    "typescript-eslint": "^8.24.0"
+  }
+}

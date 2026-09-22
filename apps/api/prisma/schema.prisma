@@ -1,0 +1,589 @@
+// Class 10 Learning Platform — core schema (modular monolith database).
+// Convention: all resource ids are uuid(); logical relations carry @unique constraints.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Enums
+// ----------------------------------------------------------------------------
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  REVIEWER
+  AUTHOR
+  TEACHER
+  STUDENT
+}
+
+enum ContentType {
+  NOTE
+  EXAMPLE
+  FORMULA
+  EXERCISE
+  VIDEO
+}
+
+enum ContentStatus {
+  DRAFT
+  IN_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum Visibility {
+  PUBLIC
+  ORGANIZATION
+  CLASS
+  TEACHER_PRIVATE
+}
+
+enum QuestionType {
+  MCQ
+  MULTIPLE_SELECT
+  TRUE_FALSE
+  FILL_IN_BLANK
+  SHORT_ANSWER
+  LONG_ANSWER
+  NUMERICAL
+  MATCHING
+  ORDERING
+}
+
+enum QuestionDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuestionStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum GenerationState {
+  QUEUED
+  PROCESSING
+  VALIDATING
+  COMPLETED
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum BookmarkContentType {
+  NOTE
+  TOPIC
+  QUESTION
+  FORMULA
+  EXAMPLE
+}
+
+// ----------------------------------------------------------------------------
+// Organizations / schools / classes
+// ----------------------------------------------------------------------------
+
+model Organization {
+  id            String   @id @default(uuid())
+  name          String
+  slug          String   @unique
+  schools       School[]
+  users         User[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model School {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  slug           String       @unique
+  classes        ClassGroup[]
+  users          User[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model ClassGroup {
+  id        String        @id @default(uuid())
+  schoolId  String
+  school    School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name      String
+  members   ClassMember[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([schoolId, name])
+}
+
+model ClassMember {
+  id        String     @id @default(uuid())
+  classId   String
+  class     ClassGroup @relation(fields: [classId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isTeacher Boolean    @default(false)
+  createdAt DateTime   @default(now())
+
+  @@unique([classId, userId])
+}
+
+// ----------------------------------------------------------------------------
+// Identity & RBAC
+// ----------------------------------------------------------------------------
+
+model User {
+  id              String        @id @default(uuid())
+  email           String        @unique
+  passwordHash    String
+  fullName        String
+  role            UserRole      @default(STUDENT)
+  emailVerified   Boolean       @default(false)
+  active          Boolean       @default(true)
+  avatarUrl       String?
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  schoolId        String?
+  school          School?       @relation(fields: [schoolId], references: [id])
+  permissions     UserPermission[]
+  memberships     ClassMember[]
+  questions       Question[]
+  bookmarks       Bookmark[]
+  progress        Progress[]
+  studyPlans      StudyPlan[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  generations     AiGeneration[]
+  lastLoginAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+/// Granular permission keys (spec §54). Seed with the fixed key set.
+model Permission {
+  id          String           @id @default(uuid())
+  key         String           @unique
+  description String
+  grants      UserPermission[]
+  createdAt   DateTime         @default(now())
+}
+
+/// Explicit permission grants that override/extend role defaults.
+model UserPermission {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  granted      Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, permissionId])
+}
+
+// ----------------------------------------------------------------------------
+// Curriculum hierarchy (spec §4)
+// ----------------------------------------------------------------------------
+
+model Curriculum {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  name        String
+  description String?
+  status      ContentStatus @default(DRAFT)
+  grades      Grade[]
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Grade {
+  id           String      @id @default(uuid())
+  curriculumId String
+  curriculum   Curriculum  @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  name         String
+  code         String
+  order        Int         @default(0)
+  subjects     Subject[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([curriculumId, code])
+}
+
+model Subject {
+  id        String    @id @default(uuid())
+  gradeId   String
+  grade     Grade     @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  name      String
+  code      String
+  order     Int       @default(0)
+  chapters  Chapter[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([gradeId, code])
+}
+
+model Chapter {
+  id        String    @id @default(uuid())
+  subjectId String
+  subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  name      String
+  order     Int       @default(0)
+  code      String?
+  topics    Topic[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([subjectId, name])
+}
+
+model Topic {
+  id        String    @id @default(uuid())
+  chapterId String
+  chapter   Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  name      String
+  order     Int       @default(0)
+  summary   String?
+  content   ContentItem[]
+  questions Question[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([chapterId, name])
+}
+
+// ----------------------------------------------------------------------------
+// Structured content (spec §9, §47, §48)
+// ----------------------------------------------------------------------------
+
+model ContentItem {
+  id          String          @id @default(uuid())
+  topicId     String
+  topic       Topic           @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  contentType ContentType     @default(NOTE)
+  title       String
+  order       Int             @default(0)
+  status      ContentStatus   @default(DRAFT)
+  visibility  Visibility      @default(PUBLIC)
+  /// Structured blocks JSON; never raw arbitrary HTML (spec §9).
+  blocks      Json
+  authoredById String?
+  versions    ContentVersion[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([topicId, contentType, title])
+}
+
+model ContentVersion {
+  id           String      @id @default(uuid())
+  contentId    String
+  content      ContentItem @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  version      Int
+  changeSummary String?
+  blocks       Json
+  authorId     String?
+  reviewerId   String?
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  createdAt    DateTime    @default(now())
+
+  @@unique([contentId, version])
+}
+
+// ----------------------------------------------------------------------------
+// Questions, banks, AI generation (spec §29, §34, §38, §62)
+// ----------------------------------------------------------------------------
+
+model Question {
+  id           String             @id @default(uuid())
+  topicId      String
+  topic        Topic              @relation(fields: [topicId], references: [id])
+  ownerId      String
+  owner        User               @relation(fields: [ownerId], references: [id])
+  questionType QuestionType
+  content      String
+  /// options for MCQ/MULTIPLE_SELECT/MATCHING etc.
+  options      Json?
+  correctAnswer Json
+  explanation  String?
+  hint         String?
+  difficulty   QuestionDifficulty @default(MEDIUM)
+  marks        Float              @default(1)
+  status       QuestionStatus     @default(DRAFT)
+  tags         String[]
+  /// provenance for AI-generated questions (spec §28)
+  sourceRefs   Json?
+  generatedById String?
+  versions     Int                @default(1)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model QuestionBank {
+  id        String             @id @default(uuid())
+  ownerId   String             @unique
+  name      String             @default("My Question Bank")
+  items     QuestionBankItem[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+model QuestionBankItem {
+  id         String       @id @default(uuid())
+  bankId     String
+  bank       QuestionBank @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  questionId String
+  createdAt  DateTime     @default(now())
+
+  @@unique([bankId, questionId])
+}
+
+model AiGeneration {
+  id          String           @id @default(uuid())
+  teacherId   String
+  teacher     User             @relation(fields: [teacherId], references: [id])
+  config      Json
+  state       GenerationState  @default(QUEUED)
+  provider    String?
+  model       String?
+  status      String?
+  error      String?
+  resultCount Int              @default(0)
+  usageMeta   Json?
+  queueJobId  String?
+  items       AiGenerationItem[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model AiGenerationItem {
+  id            String       @id @default(uuid())
+  generationId  String
+  generation    AiGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  questionId    String?
+  generatedJson Json?
+  validationErrors Json?
+  state         String       @default("QUEUED")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+// ----------------------------------------------------------------------------
+// Assessments (spec §14, §15, §43)
+// ----------------------------------------------------------------------------
+
+model Quiz {
+  id               String        @id @default(uuid())
+  title            String
+  description      String?
+  topicId          String?
+  chapterId        String?
+  subjectId        String?
+  durationMinutes  Int           @default(10)
+  passingScorePct  Float         @default(50)
+  attemptsAllowed Int           @default(1)
+  randomization    Boolean       @default(false)
+  status           ContentStatus @default(DRAFT)
+  createdBy        String
+  questions        QuizQuestion[]
+  attempts         QuizAttempt[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model QuizQuestion {
+  id         String @id @default(uuid())
+  quizId     String
+  quiz       Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionId String
+  marks      Float  @default(1)
+  order      Int    @default(0)
+
+  @@unique([quizId, questionId])
+}
+
+model QuizAttempt {
+  id         String   @id @default(uuid())
+  quizId     String
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId     String
+  answers    Json
+  score      Float?
+  maxScore   Float?
+  startedAt  DateTime @default(now())
+  submittedAt DateTime?
+
+  @@unique([quizId, userId])
+}
+
+model Assignment {
+  id          String       @id @default(uuid())
+  title       String
+  instructions String?
+  subjectId   String?
+  dueDate     DateTime?
+  marks       Float        @default(0)
+  status      ContentStatus @default(DRAFT)
+  createdBy   String
+  assignedClassIds String[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Exam {
+  id               String        @id @default(uuid())
+  title            String
+  subjectId        String?
+  durationMinutes  Int
+  totalMarks       Float
+  negativeMarks    Float         @default(0)
+  randomization    Boolean       @default(false)
+  autoSubmit       Boolean       @default(true)
+  status           ContentStatus @default(DRAFT)
+  createdBy        String
+  attempts         ExamAttempt[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model ExamAttempt {
+  id         String   @id @default(uuid())
+  examId     String
+  exam       Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  userId     String
+  answers    Json?
+  score      Float?
+  markedForReview Json?
+  startedAt  DateTime @default(now())
+  submittedAt DateTime?
+  /// Server-authoritative: derived from submittedAt - startedAt, never the client timer (spec §15).
+  effectiveSeconds Int
+}
+
+model QuestionPaper {
+  id          String              @id @default(uuid())
+  title       String
+  subjectId   String?
+  gradeId     String?
+  durationMinutes Int
+  totalMarks  Float
+  instructions String?
+  status      ContentStatus       @default(DRAFT)
+  createdBy   String
+  questions   QuestionPaperQuestion[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model QuestionPaperQuestion {
+  id         String        @id @default(uuid())
+  paperId    String
+  paper      QuestionPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  questionId String
+  section    String        @default("A")
+  marks      Float         @default(1)
+  order      Int           @default(0)
+
+  @@unique([paperId, questionId])
+}
+
+// ----------------------------------------------------------------------------
+// Learning state (spec §12, §13, §16, §17)
+// ----------------------------------------------------------------------------
+
+model Bookmark {
+  id          String             @id @default(uuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentType BookmarkContentType
+  contentId   String
+  createdAt   DateTime           @default(now())
+
+  @@unique([userId, contentType, contentId])
+}
+
+model Progress {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicId   String?
+  contentId String?
+  completed Boolean  @default(false)
+  score     Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, topicId, contentId])
+}
+
+model StudyPlan {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examDate  DateTime?
+  plan      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// Ops (spec §37, §61, §78)
+// ----------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String?
+  entityId   String?
+  meta       Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+}
+
+model AiUsage {
+  id              String   @id @default(uuid())
+  teacherId       String
+  provider        String
+  model           String
+  monthKey        String
+  requests        Int      @default(0)
+  promptTokens    Int      @default(0)
+  completionTokens Int     @default(0)
+  totalCost       Float    @default(0)
+  updatedAt       DateTime @updatedAt
+
+  @@unique([teacherId, provider, model, monthKey])
+}
