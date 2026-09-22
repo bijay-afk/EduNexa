@@ -1,5 +1,6 @@
 # NestJS API image for Render (monorepo-aware).
 # Builds the shared packages + the API workspace, then runs dist/main.js.
+# On startup it also pushes the Prisma schema and applies the idempotent seed.
 
 FROM node:24-alpine AS deps
 WORKDIR /app
@@ -11,9 +12,10 @@ RUN npm ci
 FROM node:24-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./package.json
 COPY . .
-RUN npm run build:packages \
- && npm run db:generate \
+RUN npm run db:generate \
+ && npm run build:packages \
  && npm run build -w apps/api
 
 FROM node:24-alpine AS runtime
@@ -25,4 +27,4 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/apps/api ./apps/api
 WORKDIR /app/apps/api
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate && npx prisma db seed && node dist/main.js"]
