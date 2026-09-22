@@ -36,6 +36,7 @@ jobs:
           cache: npm
       - run: npm install --no-audit --no-fund
       - run: npm run db:generate
+      - run: npm run build:packages
       - run: npm test
 
   api-e2e:
@@ -74,6 +75,7 @@ jobs:
           cache: npm
       - run: npm install --no-audit --no-fund
       - run: npm run db:generate
+      - run: npm run build:packages
       - run: npm run e2e -w apps/api
 
   build:
