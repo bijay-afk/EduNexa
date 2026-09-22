@@ -21,17 +21,17 @@ Source of truth: GitHub repo `bijay-00/EduNexa` → `main`.
   → New API Key`) if you want the API deploy from the CLI instead of the
   dashboard. Not required — the dashboard path below needs no token.
 
-## 2. Create the Render Postgres instance
+## 2. Create the Supabase Postgres (`DATABASE_URL`)
 
-1. Render dashboard → **New** → **PostgreSQL**.
-2. Fill in:
-   - **Name**: `edunexa-postgres`
-   - **Database**: `edunexa`, **User**: `edunexa`
-   - **Plan**: Free
-3. **Create Database**; wait until status = *Available* (~1 min).
-4. In the DB's **Info → Connections → External Database URL**, copy the full
-   connection string. This is your **`DATABASE_URL`**. Keep it; you need it in
-   section 4. Do **not** commit it — it is a secret.
+The schema/seed run against **Supabase** (managed Postgres) — the Render
+blueprint no longer provisions its own Postgres.
+
+1. Go to supabase.com → **New project** → pick a region near your Render region
+   (e.g. Oregon) → set a DB password → **Create project**.
+2. Project dashboard → **Connect** → **Connection string** → copy the
+   **pgBouncer / transaction-pooler** string (`postgresql://…:6543/…`). This is
+   your **`DATABASE_URL`**. Keep it; you need it in section 4. Do **not** commit
+   it — it is a secret.
 
 > Save these for later:
 > - `DATABASE_URL` → from this step
