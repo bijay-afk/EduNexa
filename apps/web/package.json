@@ -24,6 +24,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@edunexa/eslint-config": "*",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/katex": "^0.16.7",
     "@types/node": "^24.0.0",
