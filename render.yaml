@@ -1,0 +1,37 @@
+# Render blueprint — API + Postgres for EduNexa.
+#
+# How to launch:
+#  1. Render dashboard → New → Blueprint → select this repo; it will create the
+#     Postgres database and the API web service below.
+#  2. Add the REDIS_URL secret (Upstash Redis, free tier) — the API boots a
+#     BullMQ producer and needs a reachable Redis. Add it as a secret env var.
+#  3. Provide a JWT_SECRET (or let Render generate one), then Deploy.
+#
+# Schema setup happens via db:push (no migrations dir exists), and the seed is
+# idempotent, so curr+grades/subjects/chapters/topics are published on first run.
+
+databases:
+  - name: edunexa-postgres
+    plan: free
+    databaseName: edunexa
+    user: edunexa
+
+services:
+  - type: web
+    name: api
+    runtime: docker
+    plan: free
+    dockerfilePath: infrastructure/docker/Dockerfile.api-render
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '3000'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: edunexa-postgres
+          property: connectionString
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
