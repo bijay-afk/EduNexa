@@ -9,7 +9,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const prisma = new PrismaClient();
-const DATA = path.join(__dirname, '..', 'data', 'papers.json');
+const DATA = path.join(__dirname, 'data', 'papers.json');
 
 const EXAM_TYPE: Record<string, PaperExamType> = {
   PAST: 'PAST',
