@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { use } from 'react';
-import { Button, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@edunexa/ui';
+import { ArrowLeft, Bookmark, Check, Sparkles } from 'lucide-react';
+import { Button, Card, CardContent, Skeleton } from '@edunexa/ui';
 import { ContentBlocks } from '@/components/content/content-blocks';
 import { useTopic, useTopicContent } from '@/lib/queries';
 import type { ContentBlock } from '@/lib/api';
@@ -14,9 +15,9 @@ export default function TopicPage({ params }: { params: Promise<{ id: string }> 
 
   if (topic.isLoading || content.isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-64" />
+      <div className="space-y-8">
+        <Skeleton className="h-12 w-72" />
+        <Skeleton className="h-72" />
       </div>
     );
   }
@@ -41,43 +42,62 @@ export default function TopicPage({ params }: { params: Promise<{ id: string }> 
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm text-muted-foreground">
-          <Link href="/app/subjects" className="hover:underline">
+    <div className="space-y-10">
+      <div className="max-w-3xl space-y-3">
+        <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground">
+          <Link href="/app/subjects" className="text-primary hover:underline">
             {topic.data.chapter.subject.name}
           </Link>{' '}
           /{' '}
-          <Link href={`/app/chapters/${topic.data.chapter.id}`} className="hover:underline">
+          <Link href={`/app/chapters/${topic.data.chapter.id}`} className="text-primary hover:underline">
             {topic.data.chapter.name}
           </Link>
         </p>
-        <h1 className="text-2xl font-bold">{topic.data.name}</h1>
-        {topic.data.summary ? <p className="mt-1 text-muted-foreground">{topic.data.summary}</p> : null}
+        <h1 className="text-4xl md:text-5xl">{topic.data.name}</h1>
+        {topic.data.summary ? (
+          <p className="text-lg leading-relaxed text-muted-foreground">{topic.data.summary}</p>
+        ) : null}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Content</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="flex flex-wrap gap-3">
+        <Button className="gap-2">
+          <Check className="h-4 w-4" aria-hidden />
+          Mark complete
+        </Button>
+        <Button variant="outline" className="gap-2">
+          <Bookmark className="h-4 w-4" aria-hidden />
+          Bookmark
+        </Button>
+        <Button variant="ghost" className="gap-2">
+          <Link href="/app/quiz">
+            <Sparkles className="h-4 w-4" aria-hidden />
+            Practice quiz
+          </Link>
+        </Button>
+      </div>
+
+      <Card className="border-border/60">
+        <CardContent className="px-8 py-10 md:px-12">
           {content.isError ? (
             <p className="text-sm text-destructive">
               Could not load content: {content.error?.message}
             </p>
           ) : contentBlocks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No published content for this topic yet.</p>
+            <p className="text-muted-foreground">No published content for this topic yet.</p>
           ) : (
-            <ContentBlocks blocks={contentBlocks} />
+            <div className="mx-auto max-w-2xl [&_h2]:mt-10 [&_h2:first-child]:mt-0 [&_p]:leading-8">
+              <ContentBlocks blocks={contentBlocks} />
+            </div>
           )}
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap gap-3">
-        <Button>Mark complete</Button>
-        <Button variant="outline">Bookmark</Button>
-        <Button variant="ghost">
-          <Link href="/app/quiz">Practice quiz</Link>
+      <div className="flex justify-between border-t pt-6">
+        <Button variant="link" className="gap-2 px-0">
+          <Link href={`/app/chapters/${topic.data.chapter.id}`}>
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Back to {topic.data.chapter.name}
+          </Link>
         </Button>
       </div>
     </div>

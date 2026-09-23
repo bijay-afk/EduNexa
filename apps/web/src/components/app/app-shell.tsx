@@ -53,12 +53,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const session = getSession();
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 gap-8 px-4 py-8">
-      <aside className="hidden w-56 shrink-0 lg:block" aria-label="Student navigation">
-        <nav className="sticky top-20 space-y-1">
+    <div className="mx-auto flex w-full max-w-7xl flex-1 gap-12 px-6 py-12 lg:px-8">
+      <aside className="hidden w-60 shrink-0 lg:block" aria-label="Student navigation">
+        <nav className="sticky top-24 space-y-1">
           {session?.user.fullName ? (
-            <div className="flex items-center gap-2 rounded-md px-3 py-2 text-sm">
-              <UserRound className="h-4 w-4 text-muted-foreground" aria-hidden />
+            <div className="mb-4 flex items-center gap-3 rounded-xl border bg-card px-3 py-3 text-sm shadow-sm">
+              <UserRound className="h-4 w-4 text-primary" aria-hidden />
               <span className="truncate font-medium">{session.user.fullName}</span>
             </div>
           ) : null}
@@ -66,7 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               <item.icon className="h-4 w-4" aria-hidden />
               {item.label}

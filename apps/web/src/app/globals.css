@@ -65,10 +65,41 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Editorial display serif (Fraunces) — used for headlines, numerals, eyebrows. */
+  --font-display: var(--font-fraunces), 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua',
+    Palatino, Georgia, serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-feature-settings: 'rlig' 1, 'calt' 1;
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* MasterClass editorial headlines: display serif, tight tracking, optical sizing. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    font-optical-sizing: auto;
+  }
+
+  h1 {
+    font-weight: 550;
+    letter-spacing: -0.022em;
+  }
+
+  /* Drop the heavy default-bold look — keep editorial weight steps. */
+  .font-bold {
+    font-weight: 650;
+  }
 }

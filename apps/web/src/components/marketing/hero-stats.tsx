@@ -8,21 +8,21 @@ export function HeroStats() {
   const liveCount = data?.items.length;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      <div className="rounded-lg border bg-card p-5 shadow-sm">
-        <p className="text-3xl font-bold">{isLoading ? '…' : (liveCount ?? 'sample')}</p>
-        <p className="mt-1 text-sm text-muted-foreground">Subjects in the Class 10 curriculum</p>
+    <div className="grid gap-5 md:grid-cols-3">
+      <div className="border-t-2 border-primary pt-5">
+        <p className="font-display text-5xl font-semibold">{isLoading ? '…' : (liveCount ?? 'sample')}</p>
+        <p className="mt-2 text-sm text-muted-foreground">Subjects in the Class 10 curriculum</p>
       </div>
-      <div className="rounded-lg border bg-card p-5 shadow-sm">
-        <p className="text-3xl font-bold">100%</p>
-        <p className="mt-1 text-sm text-muted-foreground">Syllabus-aligned learning content</p>
+      <div className="border-t-2 border-primary pt-5">
+        <p className="font-display text-5xl font-semibold">100%</p>
+        <p className="mt-2 text-sm text-muted-foreground">Syllabus-aligned learning content</p>
       </div>
-      <div className="rounded-lg border bg-card p-5 shadow-sm">
-        <p className="text-3xl font-bold">Free</p>
-        <p className="mt-1 text-sm text-muted-foreground">For every Class 10 student</p>
+      <div className="border-t-2 border-primary pt-5">
+        <p className="font-display text-5xl font-semibold">Free</p>
+        <p className="mt-2 text-sm text-muted-foreground">For every Class 10 student</p>
       </div>
       {isError ? (
-        <p className="text-xs text-muted-foreground sm:col-span-3">
+        <p className="text-xs text-muted-foreground md:col-span-3">
           Sample subject count shown — start the API to see live numbers.
         </p>
       ) : null}

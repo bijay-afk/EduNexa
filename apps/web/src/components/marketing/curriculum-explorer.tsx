@@ -17,9 +17,9 @@ function SubjectChapters({ subjectId, name }: { subjectId: string; name: string 
 
   if (isLoading) {
     return (
-      <div className="mt-3 space-y-2">
+      <div className="mt-4 space-y-2">
         {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-9" />
+          <Skeleton key={i} className="h-11" />
         ))}
       </div>
     );
@@ -27,12 +27,15 @@ function SubjectChapters({ subjectId, name }: { subjectId: string; name: string 
 
   if (isError || !data) {
     return (
-      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-        {demoChapters[name]?.map((chapter) => (
+      <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+        {demoChapters[name]?.map((chapter, i) => (
           <li
             key={chapter}
-            className="rounded-lg border bg-background px-4 py-3 text-sm text-muted-foreground"
+            className="flex items-center gap-3 rounded-lg border bg-background px-4 py-3 text-sm text-muted-foreground"
           >
+            <span className="font-display text-lg font-semibold text-muted-foreground/40">
+              {String(i + 1).padStart(2, '0')}
+            </span>
             {chapter}
           </li>
         ))}
@@ -41,21 +44,24 @@ function SubjectChapters({ subjectId, name }: { subjectId: string; name: string 
   }
 
   return (
-    <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-      {data.chapters.map((chapter) => (
+    <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+      {data.chapters.map((chapter, i) => (
         <li
           key={chapter.id}
-          className="flex items-center justify-between rounded-lg border bg-background px-4 py-3 text-sm text-muted-foreground"
+          className="flex items-center gap-3 rounded-lg border bg-background px-4 py-3 text-sm text-muted-foreground"
         >
-          <span>{chapter.name}</span>
-          <span className="text-xs">{chapter._count?.topics ?? 0} topics</span>
+          <span className="font-display text-lg font-semibold text-muted-foreground/40">
+            {String(i + 1).padStart(2, '0')}
+          </span>
+          <span className="min-w-0 flex-1 truncate">{chapter.name}</span>
+          <span className="shrink-0 text-xs">{chapter._count?.topics ?? 0} topics</span>
         </li>
       ))}
     </ul>
   );
 }
 
-/** Expandable subject → chapters view of the Grade-10 curriculum. */
+/** Editorial, expandable subject → chapters view of the Grade-10 curriculum. */
 export function CurriculumExplorer() {
   const { data, isLoading, isError } = useSubjects();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -70,24 +76,27 @@ export function CurriculumExplorer() {
       {isLoading ? (
         [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)
       ) : (
-        list.map((subject) => {
+        list.map((subject, i) => {
           const open = openId === subject.key;
           return (
             <div key={subject.key}>
               <button
                 type="button"
                 onClick={() => setOpenId(open ? null : subject.key)}
-                className="flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-left shadow-sm transition-colors hover:border-primary"
+                className="flex w-full items-center gap-4 rounded-xl border border-border/60 bg-card px-5 py-4 text-left shadow-sm transition-colors hover:border-primary/50"
                 aria-expanded={open}
               >
-                <span className="font-medium">{subject.name}</span>
+                <span className="font-display text-2xl font-semibold text-muted-foreground/40">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className="flex-1 font-medium">{subject.name}</span>
                 <ChevronRight
                   className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`}
                   aria-hidden
                 />
               </button>
               {open ? (
-                <div className="px-1">
+                <div className="px-1 pt-1">
                   <SubjectChapters subjectId={subject.key} name={subject.name} />
                 </div>
               ) : null}
@@ -101,7 +110,7 @@ export function CurriculumExplorer() {
           published curriculum.
         </p>
       ) : null}
-      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+      <p className="flex items-center gap-1.5 pt-2 text-xs text-muted-foreground">
         <Layers className="h-3.5 w-3.5" aria-hidden />
         Tap a subject to expand its chapters and topics.
       </p>

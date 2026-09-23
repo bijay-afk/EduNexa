@@ -12,7 +12,7 @@ import {
   Progress,
   Skeleton,
 } from '@edunexa/ui';
-import { Flame, Library, Timer } from 'lucide-react';
+import { ArrowUpRight, Flame, Library, Timer } from 'lucide-react';
 import { getSession } from '@/lib/api';
 import { useSubjects } from '@/lib/queries';
 
@@ -28,72 +28,85 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Welcome back{firstName ? `, ${firstName}` : ''}</h1>
-        <p className="text-muted-foreground">Here is what is happening in your study plan today.</p>
+    <div className="space-y-12">
+      <div className="max-w-2xl space-y-3">
+        <p className="text-sm font-medium uppercase tracking-widest text-primary">
+          Student dashboard
+        </p>
+        <h1 className="text-5xl md:text-6xl">
+          Welcome back{firstName ? `, ${firstName}` : ''}
+        </h1>
+        <p className="text-lg text-muted-foreground">
+          Here is what is happening in your study plan today.
+        </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-3">
         {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <stat.icon className="h-4 w-4 text-primary" aria-hidden />
-                {stat.value}
-              </CardTitle>
-              <CardDescription>{stat.label}</CardDescription>
+          <Card key={stat.label} className="overflow-hidden border-border/60">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="font-display text-5xl font-semibold">{stat.value}</CardTitle>
+                <stat.icon className="h-5 w-5 text-primary" aria-hidden />
+              </div>
+              <CardDescription className="text-sm">{stat.label}</CardDescription>
             </CardHeader>
           </Card>
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Overall progress</CardTitle>
-          <CardDescription>Across all subjects</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Progress value={72} aria-label="72 percent complete" />
-          <p className="mt-2 text-sm text-muted-foreground">72% complete · demo analytics</p>
-        </CardContent>
-      </Card>
+      <div className="grid gap-8 lg:grid-cols-3">
+        <Card className="border-border/60 lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-2xl">Overall progress</CardTitle>
+            <CardDescription>Across all subjects</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Progress value={72} aria-label="72 percent complete" className="h-2.5" />
+            <p className="mt-3 text-sm text-muted-foreground">72% complete · demo analytics</p>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Continue learning</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              {subjects[0] ? (
-                <>
+        <Card className="border-border/60">
+          <CardHeader>
+            <CardTitle className="text-2xl">Up next</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {subjects[0] ? (
+              <div className="space-y-4">
+                <div>
                   <p className="font-medium">{subjects[0].name}</p>
                   <p className="text-sm text-muted-foreground">
                     First subject in the published curriculum
                   </p>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">No published subjects yet.</p>
-              )}
-            </div>
-            {subjects[0] ? (
-              <Button className="shrink-0">
-                <Link href={`/app/subjects/${subjects[0].id}`}>Open</Link>
-              </Button>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+                </div>
+                <Button className="w-full">
+                  <Link href={`/app/subjects/${subjects[0].id}`} className="flex items-center gap-2">
+                    Continue learning
+                    <ArrowUpRight className="h-4 w-4" aria-hidden />
+                  </Link>
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No published subjects yet.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Subjects</CardTitle>
-          <CardDescription>Live from the curriculum API</CardDescription>
+      <Card className="border-border/60">
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-2xl">Subjects</CardTitle>
+            <CardDescription>Live from the curriculum API</CardDescription>
+          </div>
+          <Button variant="outline" size="sm">
+            <Link href="/app/subjects">View all</Link>
+          </Button>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent>
           {isLoading ? (
-            [0, 1, 2].map((i) => <Skeleton key={i} className="h-9" />)
+            [0, 1, 2].map((i) => <Skeleton key={i} className="h-10" />)
           ) : isError ? (
             <p className="text-sm text-destructive">{error.message}</p>
           ) : subjects.length === 0 ? (
@@ -101,27 +114,31 @@ export default function DashboardPage() {
               No subjects found. Start the API and run the seed.
             </p>
           ) : (
-            subjects.map((subject) => (
-              <Link key={subject.id} href={`/app/subjects/${subject.id}`} className="block">
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span>{subject.name}</span>
-                  <span className="text-muted-foreground">
-                    {subject._count?.chapters ?? 0} chapters
-                  </span>
-                </div>
-                <Progress value={0} aria-label={`${subject.name} progress`} className="bg-secondary" />
-              </Link>
-            ))
+            <div className="grid gap-x-10 gap-y-5 md:grid-cols-2">
+              {subjects.map((subject) => (
+                <Link key={subject.id} href={`/app/subjects/${subject.id}`} className="group block">
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="font-medium transition-colors group-hover:text-primary">
+                      {subject.name}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {subject._count?.chapters ?? 0} chapters
+                    </span>
+                  </div>
+                  <Progress value={0} aria-label={`${subject.name} progress`} className="bg-secondary" />
+                </Link>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="border-border/60">
           <CardHeader>
-            <CardTitle>Upcoming</CardTitle>
+            <CardTitle className="text-2xl">Upcoming</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <CardContent className="space-y-2 text-muted-foreground">
             <p>• Mathematics Quiz — Friday</p>
             <p>• Science Test — next Tuesday</p>
             <p>
@@ -129,11 +146,11 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/60">
           <CardHeader>
-            <CardTitle>Recent activity</CardTitle>
+            <CardTitle className="text-2xl">Recent activity</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
+          <CardContent className="space-y-2 text-muted-foreground">
             <p>• Completed Algebra</p>
             <p>• Scored 8/10 in Physics quiz</p>
           </CardContent>

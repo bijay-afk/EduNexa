@@ -1,7 +1,7 @@
 'use client';
 
-import { BookOpen, Layers } from 'lucide-react';
-import { Badge, Card, CardContent, Skeleton } from '@edunexa/ui';
+import { ArrowUpRight, BookOpen, Layers } from 'lucide-react';
+import { Badge, Card, Skeleton } from '@edunexa/ui';
 import { useSubjects } from '@/lib/queries';
 
 const demoSubjects = [
@@ -11,7 +11,7 @@ const demoSubjects = [
   { name: 'Social Studies', chapters: 11 },
 ];
 
-/** Grid of Grade-10 subjects, live from the curriculum API with a demo fallback. */
+/** Editorial grid of Grade-10 subjects, live from the curriculum API with a demo fallback. */
 export function SubjectGrid() {
   const { data, isLoading, isError } = useSubjects();
   const live = data?.items ?? [];
@@ -26,31 +26,43 @@ export function SubjectGrid() {
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-24" />
+            <Skeleton key={i} className="h-32" />
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {cards.map((subject) => (
-            <Card key={subject.name} className="transition-colors hover:border-primary">
-              <CardContent className="flex items-start gap-3 py-4">
-                <div className="rounded-md bg-secondary p-2" aria-hidden>
-                  <BookOpen className="h-4 w-4 text-primary" />
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map((subject, i) => (
+            <Card
+              key={subject.name}
+              className="group relative overflow-hidden border-border/60 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg"
+            >
+              <div className="flex h-full flex-col justify-between gap-8 p-6">
+                <div className="flex items-start justify-between">
+                  <div className="rounded-lg bg-secondary p-2.5" aria-hidden>
+                    <BookOpen className="h-5 w-5 text-primary" />
+                  </div>
+                  <ArrowUpRight
+                    className="h-5 w-5 text-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                    aria-hidden
+                  />
                 </div>
-                <div className="min-w-0">
-                  <p className="font-medium">{subject.name}</p>
-                  <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                <div>
+                  <p className="font-display text-4xl font-semibold text-muted-foreground/40">
+                    {String(i + 1).padStart(2, '0')}
+                  </p>
+                  <p className="mt-3 text-xl font-medium">{subject.name}</p>
+                  <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Layers className="h-3.5 w-3.5" aria-hidden />
                     {subject.chapters} chapters
                   </p>
                 </div>
-              </CardContent>
+              </div>
             </Card>
           ))}
         </div>
       )}
       {showingDemo ? (
-        <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="secondary">Sample</Badge> Showing sample subjects — start the API to see the
           live curriculum.
         </p>
