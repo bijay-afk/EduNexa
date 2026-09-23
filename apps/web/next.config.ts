@@ -4,7 +4,8 @@ import type { NextConfig } from 'next';
 // browser are proxied server-side (same-origin), avoiding CORS entirely since
 // the API disables CORS in production. Leave unset to keep the fallback
 // http://localhost:3000 during local development.
-const apiUpstream = process.env.API_UPSTREAM;
+const productionApiUpstream = 'https://edunexa-api.onrender.com';
+const apiUpstream = process.env.API_UPSTREAM ?? (process.env.NODE_ENV === 'production' ? productionApiUpstream : undefined);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
