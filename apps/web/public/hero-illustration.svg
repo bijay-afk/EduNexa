@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" width="640" height="480" role="img" aria-labelledby="title desc">
+  <title id="title">An open book with a graduation cap and floating study elements</title>
+  <desc id="desc">Minimal flat illustration of syllabus-structured learning: an open textbook, a graduation cap, and floating notes and chart elements in indigo.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eef2ff"/>
+      <stop offset="1" stop-color="#f8fafc"/>
+    </linearGradient>
+    <linearGradient id="book" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#4f6ef7"/>
+      <stop offset="1" stop-color="#3b55e0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="640" height="480" rx="28" fill="url(#bg)"/>
+
+  <!-- soft page chunks / grid -->
+  <rect x="70" y="70" width="120" height="18" rx="9" fill="#c7d2fe" opacity="0.6"/>
+  <rect x="70" y="100" width="200" height="18" rx="9" fill="#e0e7ff" opacity="0.7"/>
+  <rect x="70" y="130" width="160" height="18" rx="9" fill="#e0e7ff" opacity="0.5"/>
+  <circle cx="540" cy="90" r="26" fill="#c7d2fe" opacity="0.5"/>
+  <circle cx="590" cy="150" r="10" fill="#a5b4fc" opacity="0.5"/>
+
+  <!-- floating mini chart -->
+  <rect x="430" y="300" width="150" height="90" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+  <rect x="446" y="352" width="12" height="28" rx="3" fill="#c7d2fe"/>
+  <rect x="466" y="338" width="12" height="42" rx="3" fill="#a5b4fc"/>
+  <rect x="486" y="352" width="12" height="28" rx="3" fill="#e0e7ff"/>
+  <rect x="506" y="320" width="12" height="60" rx="3" fill="#4f6ef7"/>
+  <rect x="526" y="344" width="12" height="36" rx="3" fill="#a5b4fc"/>
+
+  <!-- floating note card -->
+  <rect x="90" y="280" width="170" height="110" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+  <rect x="110" y="300" width="90" height="12" rx="6" fill="#c7d2fe"/>
+  <rect x="110" y="324" width="126" height="10" rx="5" fill="#eef2ff"/>
+  <rect x="110" y="344" width="104" height="10" rx="5" fill="#eef2ff"/>
+  <circle cx="232" cy="356" r="12" fill="#4f6ef7"/>
+  <path d="M227 357l4 4 7-8" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- open book -->
+  <g>
+    <path d="M320 250c-34-30-84-34-126-28v128c42-6 92-2 126 28z" fill="#3b55e0"/>
+    <path d="M320 250c34-30 84-34 126-28v128c-42-6-92-2-126 28z" fill="#4f6ef7"/>
+    <path d="M320 250v128" stroke="#ffffff" stroke-opacity="0.35" stroke-width="3"/>
+    <path d="M320 316c-52-6-106-2-135-10" fill="none" stroke="#ffffff" stroke-opacity="0.4" stroke-width="3" stroke-linecap="round"/>
+    <path d="M320 316c52-6 106-2 135-10" fill="none" stroke="#ffffff" stroke-opacity="0.4" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- graduation cap -->
+  <g>
+    <path d="M232 256l88-34 120 46-88 34z" fill="#312e81"/>
+    <path d="M352 308v-66" stroke="#312e81" stroke-width="5" stroke-linecap="round"/>
+    <path d="M352 242c-8-16-24-24-40-24s-32 8-40 24" fill="none" stroke="#312e81" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="352" cy="316" r="9" fill="#312e81"/>
+    <path d="M208 202v48c0 6 44 14 72 16" fill="none" stroke="#312e81" stroke-width="4" stroke-linecap="round"/>
+    <path d="M208 200l-40-12 12 18 12 52a16 16 0 0 0 32 0l12-52 12-18z" fill="#ffd166"/>
+    <circle cx="208" cy="200" r="4" fill="#f59e0b"/>
+  </g>
+
+  <!-- sparkles -->
+  <path d="M180 240l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" fill="#4f6ef7"/>
+  <path d="M470 196a6 6 0 0 1 6-6 6 6 0 0 1-6-6 6 6 0 0 1-6 6 6 6 0 0 1 6 6z" fill="#6366f1"/>
+  <path d="M560 250a8 8 0 0 1 8-8 8 8 0 0 1-8-8 8 8 0 0 1-8 8 8 8 0 0 1 8 8z" fill="#a5b4fc"/>
+</svg>
+</caret></content></content>
+</invoke>

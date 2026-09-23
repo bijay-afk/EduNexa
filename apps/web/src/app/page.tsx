@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { BookOpen, BrainCircuit, ClipboardList, GraduationCap, LineChart, Sparkles, Timer } from 'lucide-react';
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@edunexa/ui';
@@ -67,22 +68,20 @@ export default function HomePage() {
             </Button>
           </div>
         </div>
-        <Card className="border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle>This week</CardTitle>
-            <CardDescription>Learn · Practice · Assess</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>→ Quadratic Equations — factorisation and the formula</p>
-            <p>→ Life Processes — nutrition and respiration</p>
-            <p>→ Mock exam: Mathematics (75 marks, 3 hours)</p>
-            <div className="pt-1">
-              <Button variant="secondary" size="sm">
-                <Link href="/app">Open the portal</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="relative">
+          <div
+            className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-tr from-primary/10 via-transparent to-transparent"
+            aria-hidden
+          />
+          <Image
+            src="/hero-illustration.svg"
+            alt="An open textbook with a graduation cap, floating study notes, a progress chart, and sparkles"
+            width={640}
+            height={480}
+            priority
+            className="h-auto w-full rounded-2xl border bg-background shadow-lg"
+          />
+        </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-16">
