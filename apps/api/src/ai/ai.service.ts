@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiQueueService } from './ai-queue.service';
-import { questionGenerationConfigSchema, questionSourceSchema } from '@edunexa/validation';
+import {
+  questionGenerationConfigSchema,
+  questionSourceSchema,
+} from '@edunexa/validation';
+import type { PaperExamType } from '@prisma/client';
 
 @Injectable()
 export class AiService {
@@ -16,14 +20,43 @@ export class AiService {
    * - ASMITA_SET_BOOK: the Asmita Class 10 "set book" scaffold (seeded under
    *   the ASMITA-SET-10 curriculum) — the loader that feeds the worker every
    *   grounded set-book chapter/topic so questions can be generated from them.
+   * - PAPER_ARCHIVE: scanned SEE question papers (OCR text + page images) —
+   *   the major source for generation; retrieves OCR'd pages filtered by
+   *   subject and optional exam types as grounding context.
    */
   private async resolveSource(parsed: {
-    source: 'CURRICULUM' | 'ASMITA_SET_BOOK';
+    source: 'CURRICULUM' | 'ASMITA_SET_BOOK' | 'PAPER_ARCHIVE';
     curriculumId: string;
     gradeId: string;
-    chapterIds: string[];
-    topicIds: string[];
+    chapterIds?: string[];
+    topicIds?: string[];
+    archiveSubject?: string;
+    archiveExamTypes?: PaperExamType[];
   }) {
+    if (parsed.source === 'PAPER_ARCHIVE') {
+      const archiveCount = await this.prisma.paperArchive.count({
+        where: {
+          ...(parsed.archiveSubject ? { subject: { contains: parsed.archiveSubject } } : {}),
+          ...(parsed.archiveExamTypes?.length
+            ? { examType: { in: parsed.archiveExamTypes } }
+            : {}),
+        },
+      });
+      if (!archiveCount) {
+        throw new BadRequestException(
+          'No SEE paper archive records match the given subject/exam-type filters. Run the paper-archive loader (db:seed:papers) first.',
+        );
+      }
+      return {
+        source: 'PAPER_ARCHIVE' as const,
+        sampledArchiveCount: archiveCount,
+        ...(parsed.archiveSubject ? { archiveSubject: parsed.archiveSubject } : {}),
+        ...(parsed.archiveExamTypes?.length
+          ? { archiveExamTypes: parsed.archiveExamTypes }
+          : {}),
+      };
+    }
+
     if (parsed.source === 'ASMITA_SET_BOOK') {
       const curriculum = await this.prisma.curriculum.findUnique({
         where: { code: 'ASMITA-SET-10' },
@@ -44,10 +77,12 @@ export class AiService {
       if (parsed.curriculumId !== curriculum.id) {
         throw new BadRequestException('curriculumId must be the Asmita Class 10 set book');
       }
-      const topicCount = await this.prisma.topic.count({
-        where: { id: { in: parsed.topicIds }, chapter: { subject: { gradeId: parsed.gradeId } } },
-      });
-      if (topicCount < parsed.topicIds.length) {
+      const topicCount = parsed.topicIds?.length
+        ? await this.prisma.topic.count({
+            where: { id: { in: parsed.topicIds }, chapter: { subject: { gradeId: parsed.gradeId } } },
+          })
+        : 0;
+      if (parsed.topicIds?.length && topicCount < parsed.topicIds.length) {
         throw new BadRequestException(
           'Some topicIds do not belong to the Asmita Class 10 set book',
         );
@@ -57,8 +92,8 @@ export class AiService {
         curriculumId: curriculum.id,
         curriculumName: curriculum.name,
         gradeId: parsed.gradeId,
-        chapterIds: parsed.chapterIds,
-        topicIds: parsed.topicIds,
+        chapterIds: parsed.chapterIds ?? [],
+        topicIds: parsed.topicIds ?? [],
       };
     }
 
@@ -68,10 +103,12 @@ export class AiService {
     });
     if (!curriculum) throw new NotFoundException('Curriculum not found');
 
-    const topicCount = await this.prisma.topic.count({
-      where: { id: { in: parsed.topicIds } },
-    });
-    if (topicCount < parsed.topicIds.length) {
+    const topicCount = parsed.topicIds?.length
+        ? await this.prisma.topic.count({
+            where: { id: { in: parsed.topicIds } },
+          })
+        : 0;
+    if (parsed.topicIds?.length && topicCount < parsed.topicIds.length) {
       throw new BadRequestException('Some topicIds do not exist in the curriculum');
     }
 
@@ -80,8 +117,8 @@ export class AiService {
       curriculumId: curriculum.id,
       curriculumName: curriculum.name,
       gradeId: parsed.gradeId,
-      chapterIds: parsed.chapterIds,
-      topicIds: parsed.topicIds,
+      chapterIds: parsed.chapterIds ?? [],
+      topicIds: parsed.topicIds ?? [],
     };
   }
 
@@ -99,6 +136,8 @@ export class AiService {
       gradeId: parsed.gradeId,
       chapterIds: parsed.chapterIds,
       topicIds: parsed.topicIds,
+      archiveSubject: parsed.archiveSubject,
+      archiveExamTypes: parsed.archiveExamTypes,
     });
 
     const generation = await this.prisma.aiGeneration.create({

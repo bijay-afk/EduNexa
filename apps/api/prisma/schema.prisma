@@ -2,12 +2,14 @@
 // Convention: all resource ids are uuid(); logical relations carry @unique constraints.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 // ----------------------------------------------------------------------------
@@ -266,6 +268,62 @@ model Topic {
   updatedAt DateTime  @updatedAt
 
   @@unique([chapterId, name])
+}
+
+enum PaperExamType {
+  PAST
+  GRADE_INCREMENT
+  MODEL
+  PREBOARD
+}
+
+// ----------------------------------------------------------------------------
+// Scanned SEE question-paper archive (the major source for question generation)
+// ----------------------------------------------------------------------------
+
+/// One scraped SEE question paper (past / grade-increment / model / preboard).
+/// Pages are scanned images (served from the web app under /papers) whose OCR
+/// text is stored on PaperArchivePage for AI retrieval + question generation.
+model PaperArchive {
+  id         String           @id @default(uuid())
+  sourceKey  String           @unique
+  title      String
+  subject    String
+  subjectSlug String
+  examType   PaperExamType    @default(PAST)
+  /// Nepali (BS) exam year, e.g. 2082
+  year       Int?
+  /// English (AD) exam year, e.g. 2026
+  paperYear  Int?
+  sourceUrl  String
+  sourceIndex Int?
+  /// relative image directory served by the web app, e.g. /papers/english/003-...
+  imageDir   String
+  pageCount  Int              @default(0)
+  status     ContentStatus    @default(PUBLISHED)
+  pages      PaperArchivePage[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([subject])
+  @@index([subjectSlug])
+  @@index([examType])
+  @@index([year])
+}
+
+model PaperArchivePage {
+  id        String       @id @default(uuid())
+  paperId   String
+  paper     PaperArchive @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  pageOrder Int          @default(1)
+  imageUrl  String
+  ocrText   String?      @db.Text
+  /// pgvector embedding of ocrText for retrieval (text-embedding-3-small / 1536)
+  embedding Unsupported("vector(1536)")?
+  createdAt DateTime     @default(now())
+
+  @@unique([paperId, pageOrder])
+  @@index([paperId])
 }
 
 // ----------------------------------------------------------------------------

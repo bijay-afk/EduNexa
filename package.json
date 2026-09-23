@@ -23,7 +23,9 @@
     "db:generate": "npm run db:generate -w apps/api",
     "db:push": "npm run db:push -w apps/api",
     "db:migrate": "npm run db:migrate -w apps/api",
-    "db:seed": "npm run db:seed -w apps/api"
+    "db:seed": "npm run db:seed -w apps/api",
+    "db:seed:papers": "npm run db:seed:papers -w apps/api",
+    "db:embed:papers": "npm run db:embed:papers -w apps/api"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
