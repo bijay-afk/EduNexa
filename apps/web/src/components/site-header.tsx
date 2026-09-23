@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { GraduationCap, LayoutDashboard, Menu, UserPlus, X } from 'lucide-react';
 import { Button } from '@edunexa/ui';
 import { getSession, type AuthSession } from '@/lib/api';
+import { ThemeToggle } from './theme-toggle';
 
 const nav = [
   { href: '/', label: 'Home' },
@@ -57,6 +58,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
+          <ThemeToggle />
           {!hydrated ? (
             <span className="h-8 w-24 animate-pulse rounded-md bg-muted" aria-hidden />
           ) : session ? (
@@ -92,6 +94,10 @@ export function SiteHeader() {
 
       {menuOpen ? (
         <div className="border-t bg-background lg:hidden">
+          <div className="flex items-center justify-between border-b px-4 py-2">
+            <span className="text-xs text-muted-foreground">Appearance</span>
+            <ThemeToggle />
+          </div>
           <nav className="mx-auto max-w-6xl space-y-1 px-4 py-3" aria-label="Mobile">
             {nav.map((item) => (
               <Link

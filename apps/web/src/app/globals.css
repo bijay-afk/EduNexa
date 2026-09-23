@@ -4,24 +4,47 @@
 /* Scan the shared design-system package for utility classes. */
 @source '../../../packages/ui/src';
 
+/* MasterClass-inspired editorial palette.
+   Ivyio ivory + warm ink on light; deep charcoal + cream on dark. */
+
 :root {
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(222 47% 11%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(222 47% 11%);
-  --primary: hsl(222 72% 52%);
-  --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(210 40% 96%);
-  --secondary-foreground: hsl(222 47% 11%);
-  --muted: hsl(210 40% 96%);
-  --muted-foreground: hsl(215 16% 47%);
-  --accent: hsl(210 40% 96%);
-  --accent-foreground: hsl(222 47% 11%);
-  --destructive: hsl(0 72% 51%);
+  --background: hsl(40 28% 96%);
+  --foreground: hsl(32 25% 12%);
+  --card: hsl(40 24% 99%);
+  --card-foreground: hsl(32 25% 12%);
+  --primary: hsl(36 52% 38%);
+  --primary-foreground: hsl(40 40% 98%);
+  --secondary: hsl(38 20% 92%);
+  --secondary-foreground: hsl(32 25% 12%);
+  --muted: hsl(38 18% 93%);
+  --muted-foreground: hsl(32 10% 42%);
+  --accent: hsl(38 34% 88%);
+  --accent-foreground: hsl(32 25% 12%);
+  --destructive: hsl(0 58% 46%);
   --destructive-foreground: hsl(0 0% 100%);
-  --border: hsl(214 32% 91%);
-  --input: hsl(214 32% 91%);
-  --ring: hsl(222 72% 52%);
+  --border: hsl(38 14% 84%);
+  --input: hsl(38 14% 82%);
+  --ring: hsl(36 60% 44%);
+}
+
+.dark {
+  --background: hsl(32 20% 7%);
+  --foreground: hsl(40 30% 94%);
+  --card: hsl(32 18% 9%);
+  --card-foreground: hsl(40 30% 94%);
+  --primary: hsl(38 55% 48%);
+  --primary-foreground: hsl(32 25% 8%);
+  --secondary: hsl(32 14% 14%);
+  --secondary-foreground: hsl(40 30% 94%);
+  --muted: hsl(32 14% 12%);
+  --muted-foreground: hsl(38 12% 64%);
+  --accent: hsl(36 30% 17%);
+  --accent-foreground: hsl(40 30% 94%);
+  --destructive: hsl(0 60% 55%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(32 12% 20%);
+  --input: hsl(32 12% 22%);
+  --ring: hsl(38 60% 50%);
 }
 
 @theme inline {
