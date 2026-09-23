@@ -1,87 +1,198 @@
 'use client';
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { QuestionType } from '@edunexa/types';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from '@edunexa/ui';
-import { apiRequest } from '@/lib/api';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Skeleton } from '@edunexa/ui';
+import { apiRequest, getSession, fetchChapter, type ChapterRow, type TopicRow } from '@/lib/api';
+import { useGrade10, useSubjects } from '@/lib/queries';
 
-const questionTypes: QuestionType[] = ['MCQ', 'SHORT_ANSWER', 'LONG_ANSWER', 'NUMERICAL'];
+const QUESTION_TYPES: QuestionType[] = [
+  'MCQ',
+  'SHORT_ANSWER',
+  'LONG_ANSWER',
+  'NUMERICAL',
+  'TRUE_FALSE',
+  'FILL_IN_BLANK',
+];
 
-interface GenForm {
+const EXAM_TYPES = ['PAST', 'GRADE_INCREMENT', 'MODEL', 'PREBOARD'] as const;
+
+type MarksMode = 'auto' | 'per-question' | 'per-type';
+
+interface ArchiveSubject {
   subject: string;
-  chapters: string;
-  topics: string;
-  count: number;
-  totalMarks: number;
-  durationMinutes: number;
-  types: QuestionType[];
-  easy: number;
-  medium: number;
-  hard: number;
+  subjectSlug: string;
+  papers: number;
+  latestYear: number | null;
+}
+
+interface GenerationResult {
+  id: string;
+  state: string;
+  resultCount: number;
+  error: string | null;
+  items?: { id: string; questionId: string | null; state: string }[];
 }
 
 export default function QuestionGeneratorPage() {
-  const [result, setResult] = useState<{ id: string; state: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { curriculumId, grade, isLoading: chainLoading } = useGrade10();
+  const { data: subjectsData, isLoading: subjectsLoading } = useSubjects();
+  const subjects = subjectsData?.items ?? [];
 
-  const { register, handleSubmit, watch, setValue } = useForm<GenForm>({
-    defaultValues: {
-      subject: 'Mathematics',
-      chapters: 'Algebra',
-      topics: 'Quadratic Equations',
-      count: 20,
-      totalMarks: 40,
-      durationMinutes: 60,
-      types: ['MCQ', 'SHORT_ANSWER', 'LONG_ANSWER'],
-      easy: 30,
-      medium: 50,
-      hard: 20,
-    },
+  const archiveQuery = useQuery({
+    queryKey: ['archive-subjects'],
+    queryFn: () =>
+      apiRequest<ArchiveSubject[]>('/question-generation/archive-subjects', {
+        token: getSession()?.token,
+      }),
   });
-  const types = watch('types');
+  const archiveSubjects = archiveQuery.data ?? [];
 
-  async function onSubmit(values: GenForm) {
+  const [subjectId, setSubjectId] = useState('');
+  const [selectedChapters, setSelectedChapters] = useState<string[]>([]);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [archiveSubject, setArchiveSubject] = useState('');
+  const [examTypes, setExamTypes] = useState<string[]>(['PAST', 'MODEL', 'PREBOARD']);
+  const [types, setTypes] = useState<QuestionType[]>(['MCQ', 'SHORT_ANSWER', 'LONG_ANSWER']);
+  const [marksMode, setMarksMode] = useState<MarksMode>('auto');
+  const [perQuestionMarks, setPerQuestionMarks] = useState('2,3,4,5');
+  const [perTypeMarks, setPerTypeMarks] = useState<Record<string, string>>({ SHORT_ANSWER: '2', LONG_ANSWER: '4', MCQ: '1' });
+  const [count, setCount] = useState(20);
+  const [totalMarks, setTotalMarks] = useState(40);
+  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [easy, setEasy] = useState(30);
+  const [medium, setMedium] = useState(50);
+  const [hard, setHard] = useState(20);
+  const [result, setResult] = useState<GenerationResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const subject = useMemo(
+    () => subjects.find((s) => s.id === subjectId),
+    [subjects, subjectId],
+  );
+
+  const subjectDetail = useQuery({
+    queryKey: ['subject', subjectId],
+    queryFn: () => apiRequest<{ id: string; name: string; chapters: ChapterRow[] }>(`/subjects/${subjectId}`),
+    enabled: !!subjectId,
+  });
+  const chapters = subjectDetail.data?.chapters ?? [];
+
+  // All topics for the selected chapters, fetched in one query keyed on the
+  // sorted chapter-id list (hooks stay top-level and stable).
+  const chaptersKey = [...selectedChapters].sort().join(',');
+  const chaptersDetail = useQuery({
+    queryKey: ['chapters-detail', chaptersKey],
+    queryFn: () => Promise.all(selectedChapters.map((id) => fetchChapter(id))),
+    enabled: selectedChapters.length > 0,
+  });
+
+  function topicsForChapter(chapterId: string): TopicRow[] {
+    return chaptersDetail.data?.find((d) => d.id === chapterId)?.topics ?? [];
+  }
+
+  const listOfTopics = useMemo(
+    () =>
+      selectedChapters.flatMap((cid) =>
+        topicsForChapter(cid).map((t) => ({ ...t, chapterId: cid })),
+      ),
+    [selectedChapters, chaptersDetail.data],
+  );
+
+  function toggle<T>(list: T[], value: T): T[] {
+    return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+  }
+
+  function selectChapter(id: string) {
+    setSelectedChapters((prev) => {
+      const next = toggle(prev, id);
+      const removed = prev.find((x) => x !== id && !next.includes(x));
+      if (removed) {
+        const removedTopicIds = new Set(topicsForChapter(removed).map((t) => t.id));
+        setSelectedTopics((topics) => topics.filter((t) => !removedTopicIds.has(t)));
+      }
+      return next;
+    });
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setLoading(true);
     setError(null);
-    const diffTotal = values.easy + values.medium + values.hard;
+    setResult(null);
+    const session = getSession();
+    if (!session?.token) {
+      setError('You must be signed in as a teacher to generate questions.');
+      setLoading(false);
+      return;
+    }
+    if (!subjectId) {
+      setError('Select a subject.');
+      setLoading(false);
+      return;
+    }
+    if (!curriculumId || !grade?.id) {
+      setError('Curriculum data is still loading.');
+      setLoading(false);
+      return;
+    }
+    const diffTotal = easy + medium + hard;
     if (diffTotal !== 100) {
       setError(`Difficulty percentages must add up to 100 (currently ${diffTotal}).`);
       setLoading(false);
       return;
     }
+
+    const marks = marksMode === 'per-question'
+      ? perQuestionMarks.split(',').map((m) => Number(m.trim()))
+      : undefined;
+    if (marksMode === 'per-question' && (!marks || marks.some((m) => !Number.isFinite(m) || m <= 0))) {
+      setError('Enter per-question marks as positive comma-separated numbers.');
+      setLoading(false);
+      return;
+    }
+
+    const marksPerType = marksMode === 'per-type'
+      ? Object.fromEntries(
+          types
+            .filter((t) => Number(perTypeMarks[t]) > 0 && Number.isFinite(Number(perTypeMarks[t])))
+            .map((t) => [t, Number(perTypeMarks[t])]),
+        )
+      : undefined;
+
     const config = {
-      curriculumId: 'NEP-GRADE10',
-      gradeId: 'grade-10',
-      subjectId: values.subject.toLowerCase(),
-      chapterIds: [values.chapters],
-      topicIds: [values.topics],
-      count: values.count,
-      totalMarks: values.totalMarks,
-      durationMinutes: values.durationMinutes,
-      difficultyDistribution: {
-        EASY: values.easy / 100,
-        MEDIUM: values.medium / 100,
-        HARD: values.hard / 100,
-      },
+      curriculumId,
+      gradeId: grade.id,
+      subjectId,
+      chapterIds: selectedChapters.length ? selectedChapters : undefined,
+      topicIds: selectedTopics.length ? selectedTopics : undefined,
+      archiveSubject: archiveSubject.trim() || subject?.name,
+      archiveExamTypes: examTypes.length ? examTypes : undefined,
+      count,
+      totalMarks,
+      durationMinutes,
+      marks,
+      marksPerType,
+      autoAllocateMarks: marksMode === 'auto',
+      difficultyDistribution: { EASY: easy / 100, MEDIUM: medium / 100, HARD: hard / 100 },
       questionTypeDistribution: Object.fromEntries(
-        questionTypes.map((t) => [t, types.includes(t) ? 1 / Math.max(types.length, 1) : 0]),
+        QUESTION_TYPES.map((t) => [t, types.includes(t) ? 1 / Math.max(types.length, 1) : 0]),
       ),
       includeSolutions: true,
       includeExplanations: true,
       includeHints: false,
     };
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('edunexa_token') : null;
     try {
-      const res = await apiRequest<{ id: string; state: string }>('/question-generation', {
+      const res = await apiRequest<GenerationResult>('/question-generation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
-        token: token ?? undefined,
+        token: session.token,
       });
       setResult(res);
+      poll(res.id, session.token);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed');
     } finally {
@@ -89,112 +200,301 @@ export default function QuestionGeneratorPage() {
     }
   }
 
-  function toggleType(t: QuestionType) {
-    setValue(
-      'types',
-      types.includes(t) ? types.filter((x) => x !== t) : [...types, t],
-      { shouldValidate: true },
-    );
+  function poll(generationId: string, token: string) {
+    let attempts = 0;
+    const timer = window.setInterval(async () => {
+      attempts++;
+      try {
+        const status = await apiRequest<GenerationResult>(
+          `/question-generation/${generationId}`,
+          { token },
+        );
+        setResult(status);
+        if (status.state === 'COMPLETED' || status.state === 'PARTIAL' || status.state === 'FAILED') {
+          window.clearInterval(timer);
+        } else if (attempts > 120) {
+          window.clearInterval(timer);
+        }
+      } catch {
+        if (attempts > 120) window.clearInterval(timer);
+      }
+    }, 1500);
   }
+
+  const loadingTree = chainLoading || subjectsLoading;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">AI question generator</h1>
         <p className="text-muted-foreground">
-          Syllabus-grounded generation: select chapters and topics, configure the mix, then review and
-          approve drafts into your question bank.
+          Generates draft questions by cutting real questions from the SEE paper archive
+          (Supabase), grounded strictly in the CDC curriculum — no API key or Redis needed.
+          Flexible marks, chapters, subjects, and exam types.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Configuration</CardTitle>
-          <CardDescription>Spec §23–24 — chapters, topics, types, difficulty, marks</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Grid2>
-              <Field label="Subject" {...register('subject')} />
-              <Field label="Chapters" {...register('chapters')} />
-              <Field label="Topics" {...register('topics')} />
-            </Grid2>
-            <Grid3>
-              <NumberField label="Questions" type="number" {...register('count', { valueAsNumber: true })} />
-              <NumberField label="Total marks" type="number" {...register('totalMarks', { valueAsNumber: true })} />
-              <NumberField label="Duration (min)" type="number" {...register('durationMinutes', { valueAsNumber: true })} />
-            </Grid3>
+      {loadingTree ? (
+        <Card>
+          <CardContent className="space-y-3 p-6">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Configuration</CardTitle>
+            <CardDescription>
+              Select the CDC subject, chapters and topics. The engine pulls matching SEE papers
+              from the archive database and extracts real questions from their OCR.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onSubmit} className="space-y-4">
+              <Field label="Subject (curriculum)">
+                <select
+                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                  value={subjectId}
+                  onChange={(e) => {
+                    setSubjectId(e.target.value);
+                    setSelectedChapters([]);
+                    setSelectedTopics([]);
+                  }}
+                >
+                  <option value="">Select a subject…</option>
+                  {subjects.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s._count?.chapters ?? 0} chapters)
+                    </option>
+                  ))}
+                </select>
+              </Field>
 
-            <div>
-              <p className="mb-2 text-sm font-medium">Question types</p>
-              <div className="flex flex-wrap gap-2">
-                {questionTypes.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => toggleType(t)}
-                    className={`rounded-md border px-3 py-1.5 text-sm ${
-                      types.includes(t)
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'bg-background text-muted-foreground'
-                    }`}
+              {subjectId && (
+                <Field label="Chapters (leave unchecked for the whole subject)">
+                  <div className="flex flex-wrap gap-2">
+                    {chapters.map((ch) => {
+                      const active = selectedChapters.includes(ch.id);
+                      return (
+                        <button
+                          key={ch.id}
+                          type="button"
+                          onClick={() => selectChapter(ch.id)}
+                          className={`rounded-md border px-3 py-1.5 text-sm ${
+                            active
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'bg-background text-muted-foreground'
+                          }`}
+                        >
+                          {ch.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
+              )}
+
+              {selectedChapters.length > 0 && (
+                <Field label="Topics (optional; leave unchecked for whole chapters)">
+                  {chaptersDetail.isLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading topics…</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {listOfTopics.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setSelectedTopics((prev) => toggle(prev, t.id))}
+                          className={`rounded-md border px-3 py-1 text-xs ${
+                            selectedTopics.includes(t.id)
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'bg-background text-muted-foreground'
+                          }`}
+                        >
+                          {t.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </Field>
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Field label="Paper archive subject (override)">
+                  <select
+                    className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                    value={archiveSubject}
+                    onChange={(e) => setArchiveSubject(e.target.value)}
                   >
-                    {t}
-                  </button>
-                ))}
+                    <option value="">{subject?.name ?? 'Auto (curriculum subject)'}</option>
+                    {archiveSubjects.map((a) => (
+                      <option key={a.subjectSlug} value={a.subject}>
+                        {a.subject} ({a.papers} papers)
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Exam types</p>
+                  <div className="flex flex-wrap gap-2">
+                    {EXAM_TYPES.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setExamTypes((prev) => toggle(prev, t))}
+                        className={`rounded-md border px-2 py-1 text-xs ${
+                          examTypes.includes(t)
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'bg-background text-muted-foreground'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Question types</p>
+                  <div className="flex flex-wrap gap-2">
+                    {QUESTION_TYPES.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTypes((prev) => toggle(prev, t))}
+                        className={`rounded-md border px-2 py-1 text-xs ${
+                          types.includes(t)
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'bg-background text-muted-foreground'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <p className="mb-2 text-sm font-medium">Difficulty distribution (%)</p>
-              <Grid3>
-                <NumberField label="Easy %" type="number" {...register('easy', { valueAsNumber: true })} />
-                <NumberField label="Medium %" type="number" {...register('medium', { valueAsNumber: true })} />
-                <NumberField label="Hard %" type="number" {...register('hard', { valueAsNumber: true })} />
-              </Grid3>
-            </div>
-
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Enqueuing…' : 'Generate draft questions'}
-            </Button>
-
-            {result && (
-              <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
-                Generation <code>{result.id}</code> — status{' '}
-                <strong>{result.state}</strong>. The worker (Phase 5) runs retrieval, generation,
-                validation, and de-duplication before drafts appear for review.
+              <div className="grid gap-3 sm:grid-cols-3">
+                <NumberField label="Question count" value={count} onChange={(v) => setCount(Number(v))} />
+                <NumberField label="Total marks" value={totalMarks} onChange={(v) => setTotalMarks(Number(v))} />
+                <NumberField label="Duration (min)" value={durationMinutes} onChange={(v) => setDurationMinutes(Number(v))} />
               </div>
-            )}
-          </form>
-        </CardContent>
-      </Card>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Marks allocation</p>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ['auto', 'Auto (split total marks)'],
+                      ['per-question', 'Exact marks per question'],
+                      ['per-type', 'Marks per question type'],
+                    ] as [MarksMode, string][]
+                  ).map(([mode, label]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setMarksMode(mode)}
+                      className={`rounded-md border px-3 py-1.5 text-sm ${
+                        marksMode === mode
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'bg-background text-muted-foreground'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {marksMode === 'per-question' && (
+                <NumberField
+                  label="Marks per question (comma separated, e.g. 2,3,4,5)"
+                  value={perQuestionMarks}
+                  onChange={(v) => setPerQuestionMarks(String(v))}
+                  text
+                />
+              )}
+              {marksMode === 'per-type' && (
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {types.map((t) => (
+                    <NumberField
+                      key={t}
+                      label={`${t} marks`}
+                      value={perTypeMarks[t] ?? ''}
+                      onChange={(v) => setPerTypeMarks((prev) => ({ ...prev, [t]: String(v) }))}
+                      text
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div>
+                <p className="mb-2 text-sm font-medium">Difficulty distribution (%)</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <NumberField label="Easy %" value={easy} onChange={(v) => setEasy(Number(v))} />
+                  <NumberField label="Medium %" value={medium} onChange={(v) => setMedium(Number(v))} />
+                  <NumberField label="Hard %" value={hard} onChange={(v) => setHard(Number(v))} />
+                </div>
+              </div>
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Generating…' : 'Generate draft questions'}
+              </Button>
+
+              {result && (
+                <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+                  Generation <code>{result.id}</code> — status{' '}
+                  <strong>{result.state}</strong>
+                  {result.error ? <span className="text-destructive"> — {result.error}</span> : null}
+                  {result.state === 'COMPLETED' ? (
+                    <p className="mt-1">
+                      {result.resultCount} draft questions created{selectedChapters.length ? ` across the selected chapters` : ''}. Review them, fill in answers, and approve to build your question bank.
+                    </p>
+                  ) : result.state === 'PROCESSING' || result.state === 'QUEUED' ? (
+                    <p className="mt-1 text-muted-foreground">Polling for completion…</p>
+                  ) : null}
+                </div>
+              )}
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
 
-function Field({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-sm font-medium">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+  text,
+}: {
+  label: string;
+  value: number | string;
+  onChange: (v: number | string) => void;
+  text?: boolean;
+}) {
   return (
     <div className="space-y-1">
       <label className="text-sm font-medium">{label}</label>
-      <Input {...props} />
+      <Input
+        type={text ? 'text' : 'number'}
+        min={text ? undefined : 1}
+        value={value}
+        onChange={(e) => onChange(text ? e.target.value : Number(e.target.value))}
+      />
     </div>
   );
-}
-
-function NumberField({ label, ...props }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <div className="space-y-1">
-      <label className="text-sm font-medium">{label}</label>
-      <Input {...props} />
-    </div>
-  );
-}
-
-function Grid2({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-3 sm:grid-cols-2">{children}</div>;
-}
-
-function Grid3({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-3 sm:grid-cols-3">{children}</div>;
 }

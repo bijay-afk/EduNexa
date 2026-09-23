@@ -18,7 +18,9 @@ import {
  */
 export function useGrade10() {
   const curriculums = useQuery({ queryKey: ['curriculums'], queryFn: fetchCurriculums });
-  const curriculumId = curriculums.data?.[0]?.id ?? null;
+  const curriculum =
+    curriculums.data?.find((c) => c.code === 'NEP-GRADE10') ?? curriculums.data?.[0] ?? null;
+  const curriculumId = curriculum?.id ?? null;
 
   const grades = useQuery({
     queryKey: ['grades', curriculumId],
@@ -32,7 +34,7 @@ export function useGrade10() {
   const isError = curriculums.isError || grades.isError;
   const error = curriculums.error ?? grades.error;
 
-  return { grade, isLoading, isError, error };
+  return { curriculumId, grade, isLoading, isError, error };
 }
 
 export function useSubjects() {
