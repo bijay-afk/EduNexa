@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiQueueService } from './ai-queue.service';
+import { AiGenerationProcessor } from './ai-generation.processor';
 import {
   questionGenerationConfigSchema,
   questionSourceSchema,
@@ -12,6 +13,7 @@ export class AiService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queue: AiQueueService,
+    private readonly processor: AiGenerationProcessor,
   ) {}
 
   /**
@@ -28,12 +30,18 @@ export class AiService {
     source: 'CURRICULUM' | 'ASMITA_SET_BOOK' | 'PAPER_ARCHIVE';
     curriculumId: string;
     gradeId: string;
+    subjectId?: string;
     chapterIds?: string[];
     topicIds?: string[];
     archiveSubject?: string;
     archiveExamTypes?: PaperExamType[];
   }) {
     if (parsed.source === 'PAPER_ARCHIVE') {
+      if (!parsed.archiveSubject) {
+        throw new BadRequestException(
+          'PAPER_ARCHIVE generation requires archiveSubject (e.g. "Mathematics").',
+        );
+      }
       const archiveCount = await this.prisma.paperArchive.count({
         where: {
           ...(parsed.archiveSubject ? { subject: { contains: parsed.archiveSubject } } : {}),
@@ -103,6 +111,18 @@ export class AiService {
     });
     if (!curriculum) throw new NotFoundException('Curriculum not found');
 
+    // If the subject belongs to this curriculum, derive the matching archive
+    // subject (the engine cuts real SEE questions for it) when the caller
+    // opted into ARCHIVE_EXTRACT or asked for a subject but no archive subject.
+    const subject = parsed.subjectId
+      ? await this.prisma.subject.findUnique({
+          where: { id: parsed.subjectId },
+          select: { id: true, name: true },
+        })
+      : null;
+    if (parsed.subjectId && !subject) throw new NotFoundException('Subject not found');
+    const derivedArchiveSubject = subject ? subject.name : undefined;
+
     const topicCount = parsed.topicIds?.length
         ? await this.prisma.topic.count({
             where: { id: { in: parsed.topicIds } },
@@ -117,8 +137,10 @@ export class AiService {
       curriculumId: curriculum.id,
       curriculumName: curriculum.name,
       gradeId: parsed.gradeId,
+      subjectId: subject?.id,
       chapterIds: parsed.chapterIds ?? [],
       topicIds: parsed.topicIds ?? [],
+      archiveSubject: parsed.archiveSubject ?? derivedArchiveSubject,
     };
   }
 
@@ -126,27 +148,48 @@ export class AiService {
    * Enqueue a syllabus-grounded generation job (spec §34).
    * The config is schema-validated here; curriculum/source resolution happens
    * immediately so the queue payload always carries a proven grounding.
+   *
+   * ARCHIVE_EXTRACT runs synchronously (zero API keys, zero Redis): real
+   * questions are cut straight from the paper archive DB and persisted as
+   * drafts before the method returns.
    */
   async enqueueGeneration(teacherId: string, config: unknown) {
     const parsed = questionGenerationConfigSchema.parse(config);
     const source = questionSourceSchema.parse(parsed.source ?? 'CURRICULUM');
+    const generator = parsed.generator ?? 'ARCHIVE_EXTRACT';
     const grounding = await this.resolveSource({
       source,
       curriculumId: parsed.curriculumId,
       gradeId: parsed.gradeId,
+      subjectId: parsed.subjectId,
       chapterIds: parsed.chapterIds,
       topicIds: parsed.topicIds,
       archiveSubject: parsed.archiveSubject,
       archiveExamTypes: parsed.archiveExamTypes,
     });
 
+    const state = generator === 'ARCHIVE_EXTRACT' ? 'PROCESSING' : 'QUEUED';
     const generation = await this.prisma.aiGeneration.create({
       data: {
         teacherId,
-        config: { ...parsed, ...grounding },
-        state: 'QUEUED',
+        config: { ...parsed, ...grounding, generator },
+        state,
       },
     });
+
+    if (generator === 'ARCHIVE_EXTRACT') {
+      try {
+        await this.processor.process(generation.id);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Generation failed';
+        await this.prisma.aiGeneration.update({
+          where: { id: generation.id },
+          data: { state: 'FAILED', error: message },
+        });
+        throw new BadRequestException(message);
+      }
+      return this.prisma.aiGeneration.findUniqueOrThrow({ where: { id: generation.id } });
+    }
 
     const job = await this.queue.queue.add('generate', {
       generationId: generation.id,
@@ -162,16 +205,65 @@ export class AiService {
     return this.prisma.aiGeneration.findUniqueOrThrow({ where: { id: generation.id } });
   }
 
+  /** Subjects available in the paper archive, for the teacher generator form. */
+  async listArchiveSubjects() {
+    const rows = await this.prisma.paperArchive.groupBy({
+      by: ['subject', 'subjectSlug'],
+      _count: { _all: true },
+      _max: { paperYear: true },
+    });
+    return rows
+      .map((r) => ({
+        subject: r.subject,
+        subjectSlug: r.subjectSlug,
+        papers: r._count._all,
+        latestYear: r._max.paperYear,
+      }))
+      .sort((a, b) => a.subject.localeCompare(b.subject));
+  }
+
+  /** Papers in the archive, newest first, for the generator form. */
+  async listArchivePapers() {
+    const rows = await this.prisma.paperArchive.findMany({
+      select: {
+        id: true,
+        title: true,
+        subject: true,
+        examType: true,
+        year: true,
+        paperYear: true,
+        pageCount: true,
+      },
+      orderBy: { paperYear: 'desc' },
+    });
+    return rows;
+  }
+
   async getGeneration(generationId: string): Promise<{
     id: string;
     state: string;
     resultCount: number;
     createdAt: Date;
     error: string | null;
+    provider: string | null;
+    model: string | null;
+    items?: { id: string; questionId: string | null; state: string }[];
   }> {
     const generation = await this.prisma.aiGeneration.findUnique({
       where: { id: generationId },
-      select: { id: true, state: true, resultCount: true, createdAt: true, error: true },
+      select: {
+        id: true,
+        state: true,
+        resultCount: true,
+        createdAt: true,
+        error: true,
+        provider: true,
+        model: true,
+        items: {
+          select: { id: true, questionId: true, state: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
     });
     if (!generation) throw new NotFoundException('Generation not found');
     return generation;

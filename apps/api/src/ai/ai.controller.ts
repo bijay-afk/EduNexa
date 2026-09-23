@@ -12,13 +12,25 @@ export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Enqueue a syllabus-grounded question generation job' })
+  @ApiOperation({ summary: 'Generate syllabus-grounded questions from the paper-archive database' })
   enqueue(@Body() config: unknown, @CurrentUser() user: AuthenticatedUser) {
     return this.aiService.enqueueGeneration(user.id, config);
   }
 
+  @Get('archive-subjects')
+  @ApiOperation({ summary: 'List paper-archive subjects + exam types for the generator form' })
+  archiveSubjects() {
+    return this.aiService.listArchiveSubjects();
+  }
+
+  @Get('archive-papers')
+  @ApiOperation({ summary: 'List paper-archive papers for the generator form' })
+  archivePapers() {
+    return this.aiService.listArchivePapers();
+  }
+
   @Get(':id')
-  @ApiOperation({ summary: 'Poll generation status' })
+  @ApiOperation({ summary: 'Poll generation status (includes generated item ids)' })
   getGeneration(@Param('id') id: string) {
     return this.aiService.getGeneration(id);
   }

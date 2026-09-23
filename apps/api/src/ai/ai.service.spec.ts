@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { prismaMock, AiServiceHarness } from '../testing/ai-service.harness';
 import { questionGenerationConfigSchema } from '@edunexa/validation';
+import { extractQuestions } from './question-extractor';
 
 function validConfig(overrides: Record<string, unknown> = {}) {
   return {
@@ -18,10 +19,20 @@ function validConfig(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe('questionGenerationConfigSchema source default', () => {
+describe('questionGenerationConfigSchema source + generator default', () => {
   it('defaults source to CURRICULUM when omitted', () => {
     const parsed = questionGenerationConfigSchema.parse(validConfig());
     expect(parsed.source).toBe('CURRICULUM');
+  });
+
+  it('defaults generator to ARCHIVE_EXTRACT', () => {
+    const parsed = questionGenerationConfigSchema.parse(validConfig());
+    expect(parsed.generator).toBe('ARCHIVE_EXTRACT');
+  });
+
+  it('accepts flexible marks arrays', () => {
+    const parsed = questionGenerationConfigSchema.parse(validConfig({ marks: [1, 2, 3] }));
+    expect(parsed.marks).toEqual([1, 2, 3]);
   });
 
   it('accepts an explicit ASMITA_SET_BOOK source', () => {
@@ -41,15 +52,16 @@ describe('AiService.resolveSource', () => {
     vi.clearAllMocks();
   });
 
-  it('resolves the NEB curriculum when source is CURRICULUM', async () => {
+  it('resolves the NEB curriculum when source is CURRICULUM (LLM path)', async () => {
     (prismaMock.curriculum.findUnique as Mock).mockResolvedValue({
       id: 'cur-1',
       name: 'Nepal Grade 10 Curriculum',
     });
     (prismaMock.topic.count as Mock).mockResolvedValue(1);
+    (prismaMock.subject.findUnique as Mock).mockResolvedValue({ id: 'sub-1', name: 'Mathematics' });
 
     const service = new AiServiceHarness();
-    const config = validConfig({ topicIds: ['topic-1'] });
+    const config = validConfig({ topicIds: ['topic-1'], generator: 'LLM' });
     await service.service.enqueueGeneration('teacher-1', config);
 
     expect(prismaMock.curriculum.findUnique).toHaveBeenCalledWith({ where: { id: 'cur-1' }, select: { id: true, name: true } });
@@ -62,7 +74,7 @@ describe('AiService.resolveSource', () => {
     (prismaMock.curriculum.findUnique as Mock).mockResolvedValue(null);
 
     const service = new AiServiceHarness();
-    await expect(service.service.enqueueGeneration('teacher-1', validConfig())).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.service.enqueueGeneration('teacher-1', validConfig({ generator: 'LLM' }))).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('throws BadRequest when CURRICULUM topicIds are missing', async () => {
@@ -70,7 +82,7 @@ describe('AiService.resolveSource', () => {
     (prismaMock.topic.count as Mock).mockResolvedValue(0);
 
     const service = new AiServiceHarness();
-    await expect(service.service.enqueueGeneration('teacher-1', validConfig())).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.service.enqueueGeneration('teacher-1', validConfig({ generator: 'LLM' }))).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('resolves the Asmita set book when source is ASMITA_SET_BOOK', async () => {
@@ -87,6 +99,7 @@ describe('AiService.resolveSource', () => {
       curriculumId: 'asmita-1',
       gradeId: 'asmita-grade',
       topicIds: ['asmita-topic-1'],
+      generator: 'LLM',
     });
     await service.service.enqueueGeneration('teacher-1', config);
 
@@ -107,7 +120,7 @@ describe('AiService.resolveSource', () => {
     await expect(
       service.service.enqueueGeneration(
         'teacher-1',
-        validConfig({ source: 'ASMITA_SET_BOOK', curriculumId: 'asmita-1' }),
+        validConfig({ source: 'ASMITA_SET_BOOK', curriculumId: 'asmita-1', generator: 'LLM' }),
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
@@ -120,7 +133,7 @@ describe('AiService.resolveSource', () => {
     await expect(
       service.service.enqueueGeneration(
         'teacher-1',
-        validConfig({ source: 'ASMITA_SET_BOOK', curriculumId: 'asmita-1', gradeId: 'x' }),
+        validConfig({ source: 'ASMITA_SET_BOOK', curriculumId: 'asmita-1', gradeId: 'x', generator: 'LLM' }),
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
@@ -134,8 +147,72 @@ describe('AiService.resolveSource', () => {
     await expect(
       service.service.enqueueGeneration(
         'teacher-1',
-        validConfig({ source: 'ASMITA_SET_BOOK', curriculumId: 'asmita-1', topicIds: ['nope'] }),
+        validConfig({ source: 'ASMITA_SET_BOOK', curriculumId: 'asmita-1', topicIds: ['nope'], generator: 'LLM' }),
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('requires archiveSubject for PAPER_ARCHIVE source', async () => {
+    const service = new AiServiceHarness();
+    await expect(
+      service.service.enqueueGeneration(
+        'teacher-1',
+        validConfig({
+          source: 'PAPER_ARCHIVE',
+          archiveExamTypes: ['PAST'],
+          generator: 'ARCHIVE_EXTRACT',
+        }),
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('runs ARCHIVE_EXTRACT synchronously and persists drafts', async () => {
+    (prismaMock.curriculum.findUnique as Mock).mockResolvedValue({ id: 'cur-1', name: 'C' });
+    (prismaMock.topic.count as Mock).mockResolvedValue(1);
+    (prismaMock.topic.findMany as Mock).mockResolvedValue([{ id: 'topic-1' }, { id: 'topic-2' }]);
+    (prismaMock.chapter.findMany as Mock).mockResolvedValue([
+      { topics: [{ id: 'topic-1' }, { id: 'topic-2' }] },
+    ]);
+    (prismaMock.paperArchive.count as Mock).mockResolvedValue(3);
+    (prismaMock.paperArchive.findMany as Mock).mockResolvedValue([
+      {
+        id: 'paper-1',
+        pages: [
+          { id: 'page-1', ocrText: '1. Factorise x2 - 9. (2)\n2. Solve 2x = 8. (2)' },
+        ],
+      },
+    ]);
+
+    const harness = new AiServiceHarness();
+    const config = validConfig({
+      source: 'CURRICULUM',
+      archiveSubject: 'Mathematics',
+      generator: 'ARCHIVE_EXTRACT',
+    });
+    const result = await harness.service.enqueueGeneration('teacher-1', config);
+
+    expect(prismaMock.question.create).toHaveBeenCalled();
+    expect(prismaMock.aiGenerationItem.create).toHaveBeenCalled();
+    expect(result.id).toBe('gen-1');
+  });
+});
+
+describe('question-extractor', () => {
+  it('extracts numbered questions with marks', () => {
+    const out = extractQuestions(
+      "Group 'A'\n1. Simplify: 3x + 2x. (5)\n2. Find the value of x if 2x=10. (2+3)\nGroup 'B'\n1. Prove the theorem of Pythagoras.\n",
+    );
+    expect(out.length).toBeGreaterThanOrEqual(2);
+    expect(out[0].text).toContain('Simplify');
+    expect(out[0].marks).toBe(5);
+    expect(out[1].marks).toBe(5);
+  });
+
+  it('keeps option lines glued to their question', () => {
+    const out = extractQuestions(
+      '1. Choose the correct answer:\na) 1\nb) 2\nc) 3\nd) 4\n2. State Newtons law.',
+    );
+    const mcq = out.find((q) => q.options && q.options.length === 4);
+    expect(mcq).toBeDefined();
   });
 });
