@@ -731,6 +731,157 @@ async function seedSubjects(gradeId: string) {
   return subjectIds;
 }
 
+// ----------------------------------------------------------------------------
+// Asmita Class 10 Set Book — structural scaffold (§ loader).
+// The Asmita "Set Book" is a groundable question source for Class 10. The full
+// copyrighted exercise text is NOT embedded here; this seeds the subject →
+// set → topic skeleton so question generation can be grounded on it. The
+// loader (ai-worker, Phase 5) ingests the publisher content into these nodes.
+// ----------------------------------------------------------------------------
+
+const ASMITA_SUBJECTS: SubjectSeed[] = [
+  {
+    name: 'Compulsory Mathematics',
+    code: 'asmita-math',
+    order: 1,
+    chapters: [
+      {
+        name: 'Algebra — Set 1',
+        topics: [
+          { name: 'Factorization', summary: 'Asmita Set Book: algebra factorization practice set.' },
+          { name: 'Quadratic equations', summary: 'Asmita Set Book: quadratic equations practice set.' },
+        ],
+      },
+      {
+        name: 'Geometry — Set 1',
+        topics: [
+          { name: 'Angles and circles', summary: 'Asmita Set Book: circle theorem practice set.' },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Science',
+    code: 'asmita-science',
+    order: 2,
+    chapters: [
+      {
+        name: 'Physics — Set 1',
+        topics: [
+          { name: 'Force and equation of motion', summary: 'Asmita Set Book: force and motion practice set.' },
+          { name: 'Pressure', summary: 'Asmita Set Book: pressure practice set.' },
+        ],
+      },
+      {
+        name: 'Chemistry — Set 1',
+        topics: [
+          { name: 'Chemical reaction', summary: 'Asmita Set Book: chemical reactions practice set.' },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'English',
+    code: 'asmita-english',
+    order: 3,
+    chapters: [
+      {
+        name: 'Grammar — Set 1',
+        topics: [
+          { name: 'Tenses', summary: 'Asmita Set Book: tenses practice set.' },
+          { name: 'Reported speech', summary: 'Asmita Set Book: reported speech practice set.' },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Compulsory Nepali',
+    code: 'asmita-nepali',
+    order: 4,
+    chapters: [
+      {
+        name: 'व्याकरण — Set 1',
+        topics: [
+          { name: 'वाक्य र यसका प्रकार', summary: 'Asmita Set Book: sentence types practice set.' },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Social Studies',
+    code: 'asmita-social',
+    order: 5,
+    chapters: [
+      {
+        name: 'History — Set 1',
+        topics: [
+          { name: 'Modern Nepal', summary: 'Asmita Set Book: modern Nepali history practice set.' },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Optional Mathematics',
+    code: 'asmita-opt-math',
+    order: 6,
+    chapters: [
+      {
+        name: 'Functions — Set 1',
+        topics: [
+          { name: 'Functions and graphs', summary: 'Asmita Set Book: functions practice set.' },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Computer Science',
+    code: 'asmita-computer',
+    order: 7,
+    chapters: [
+      {
+        name: 'Programming — Set 1',
+        topics: [
+          { name: 'Introduction to C', summary: 'Asmita Set Book: C programming practice set.' },
+        ],
+      },
+    ],
+  },
+];
+
+async function upsertAsmitaSetBook() {
+  const curriculum = await prisma.curriculum.upsert({
+    where: { code: 'ASMITA-SET-10' },
+    update: { status: 'PUBLISHED', name: 'Asmita Class 10 Set Book' },
+    create: {
+      code: 'ASMITA-SET-10',
+      name: 'Asmita Class 10 Set Book',
+      status: 'PUBLISHED',
+    },
+  });
+
+  const grade = await prisma.grade.upsert({
+    where: { curriculumId_code: { curriculumId: curriculum.id, code: '10' } },
+    update: { name: 'Class 10' },
+    create: {
+      curriculumId: curriculum.id,
+      name: 'Class 10',
+      code: '10',
+      order: 1,
+    },
+  });
+
+  for (const [si, subject] of ASMITA_SUBJECTS.entries()) {
+    const s = await prisma.subject.upsert({
+      where: { gradeId_code: { gradeId: grade.id, code: subject.code } },
+      update: { name: subject.name, order: subject.order },
+      create: { gradeId: grade.id, name: subject.name, code: subject.code, order: subject.order },
+    });
+    await seedChapters(s.id, subject.chapters);
+  }
+
+  return { curriculum, grade };
+}
+
 async function seedChapters(subjectId: string, chapters: ChapterSeed[]) {
   for (const [ci, chapter] of chapters.entries()) {
     const ch = await prisma.chapter.upsert({
@@ -807,6 +958,9 @@ async function main() {
 
   const subjectIds = await seedSubjects(grade.id);
 
+  const asmita = await upsertAsmitaSetBook();
+  console.log(`Asmita set book ready: ${asmita.curriculum.id} (${asmita.curriculum.code})`);
+
   const stats = await Promise.all([
     prisma.subject.count({ where: { gradeId: grade.id } }),
     prisma.chapter.count(),
@@ -821,6 +975,7 @@ async function main() {
         org: { id: org.id, slug: org.slug },
         curriculum: { id: curriculum.id, code: curriculum.code },
         grade: { id: grade.id, name: grade.name },
+        asmitaSetBook: { id: asmita.curriculum.id, code: asmita.curriculum.code },
         subjects: stats[0],
         chapters: stats[1],
         topics: stats[2],
