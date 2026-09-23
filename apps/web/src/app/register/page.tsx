@@ -22,7 +22,7 @@ export default function RegisterPage() {
         body: JSON.stringify(form),
       });
       setSession(res);
-      router.push(res.user.role === 'TEACHER' ? '/teacher' : '/app');
+      router.push(res.user.role === 'STUDENT' ? '/app' : '/teacher');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {

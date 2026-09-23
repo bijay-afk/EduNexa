@@ -1,4 +1,5 @@
 import { PrismaClient, Permission, type ContentType } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -937,6 +938,34 @@ async function seedTopics(chapterId: string, topics: TopicSeed[]) {
   }
 }
 
+/**
+ * Demo accounts so the login flow can be exercised end-to-end. Idempotent by
+ * unique email. Passwords are only for local/demo use.
+ */
+async function seedDemoUsers() {
+  const demoUsers: Array<{ email: string; password: string; fullName: string; role: 'STUDENT' | 'TEACHER' | 'ADMIN' }> = [
+    { email: 'student@edunexa.com', password: 'student123', fullName: 'Sita Sharma', role: 'STUDENT' },
+    { email: 'teacher@edunexa.com', password: 'teacher123', fullName: 'Hari Adhikari', role: 'TEACHER' },
+    { email: 'admin@edunexa.com', password: 'admin1234', fullName: 'Platform Admin', role: 'ADMIN' },
+  ];
+  for (const demo of demoUsers) {
+    const passwordHash = await bcrypt.hash(demo.password, 12);
+    await prisma.user.upsert({
+      where: { email: demo.email },
+      update: { fullName: demo.fullName, role: demo.role, emailVerified: true, active: true },
+      create: {
+        email: demo.email,
+        passwordHash,
+        fullName: demo.fullName,
+        role: demo.role,
+        emailVerified: true,
+        active: true,
+      },
+    });
+  }
+  console.log('Demo users ready: student@edunexa.com / teacher@edunexa.com / admin@edunexa.com');
+}
+
 async function main() {
   console.log('Seeding permissions...');
   for (const p of PERMISSIONS) {
@@ -960,6 +989,8 @@ async function main() {
 
   const asmita = await upsertAsmitaSetBook();
   console.log(`Asmita set book ready: ${asmita.curriculum.id} (${asmita.curriculum.code})`);
+
+  await seedDemoUsers();
 
   const stats = await Promise.all([
     prisma.subject.count({ where: { gradeId: grade.id } }),

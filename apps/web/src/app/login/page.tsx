@@ -23,7 +23,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       setSession(res);
-      router.push(res.user.role === 'TEACHER' ? '/teacher' : '/app');
+      router.push(res.user.role === 'STUDENT' ? '/app' : '/teacher');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
