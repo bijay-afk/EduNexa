@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { BookOpen, BrainCircuit, ClipboardList, GraduationCap, LineChart, Sparkles, Timer } from 'lucide-react';
-import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@edunexa/ui';
+import { Badge, Button, Card, CardDescription, CardHeader, CardTitle } from '@edunexa/ui';
 import { HeroStats } from '@/components/marketing/hero-stats';
 import { SubjectGrid } from '@/components/marketing/subject-grid';
 import { NoticeBoard } from '@/components/marketing/notice-board';
