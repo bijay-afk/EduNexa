@@ -78,7 +78,7 @@ export default function LoginPage() {
         </CardContent>
       </Card>
       <p className="mt-4 text-center text-xs text-muted-foreground">
-        Note: start the API with <code>npm run dev:api</code> and seed the database to sign in.
+        An account must exist in the EduNexa database to sign in.
       </p>
     </div>
   );

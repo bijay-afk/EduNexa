@@ -1,13 +1,7 @@
-import Link from 'next/link';
-import { Badge, Button, Card, CardDescription, CardHeader, CardTitle } from '@edunexa/ui';
+import { CalendarClock } from 'lucide-react';
+import { Card, CardContent } from '@edunexa/ui';
 
 export const metadata = { title: 'Mock Exams' };
-
-const exams = [
-  { title: 'Mathematics — Full mock', detail: '75 marks · 3 hours · negative marking', status: 'Available' },
-  { title: 'Science — Term papers', detail: '50 marks · 2 hours', status: 'Available' },
-  { title: 'English — Sample paper', detail: '40 marks · 1.5 hours', status: 'Upcoming' },
-];
 
 export default function ExamsPage() {
   return (
@@ -18,30 +12,13 @@ export default function ExamsPage() {
           Exams run on a server-authoritative timer with question navigation and auto-submit.
         </p>
       </div>
-      <div className="grid gap-4">
-        {exams.map((exam) => (
-          <Card key={exam.title}>
-            <CardHeader>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <CardTitle>{exam.title}</CardTitle>
-                  <CardDescription>{exam.detail}</CardDescription>
-                </div>
-                <Badge variant={exam.status === 'Available' ? 'default' : 'secondary'}>
-                  {exam.status}
-                </Badge>
-              </div>
-              {exam.status === 'Available' ? (
-                <div className="pt-1">
-                  <Button size="sm" variant="outline">
-                    <Link href="/app/quiz">Start practice</Link>
-                  </Button>
-                </div>
-              ) : null}
-            </CardHeader>
-          </Card>
-        ))}
-      </div>
+      <Card>
+        <CardContent className="flex flex-col items-center gap-1 py-12 text-center text-sm text-muted-foreground">
+          <CalendarClock className="mb-1 h-6 w-6" aria-hidden />
+          <p className="font-medium text-foreground">No mock exams scheduled yet</p>
+          <p>Scheduled exams will appear here.</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -13,6 +13,14 @@ const tagTone: Record<string, 'default' | 'secondary' | 'outline'> = {
 export function NoticeBoard({ limit }: { limit?: number }) {
   const items = limit ? notices.slice(0, limit) : notices;
 
+  if (items.length === 0) {
+    return (
+      <p className="rounded-lg border bg-card px-5 py-8 text-center text-sm text-muted-foreground">
+        No notices published yet.
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-3">
       {items.map((notice) => (

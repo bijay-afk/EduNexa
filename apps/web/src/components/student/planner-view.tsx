@@ -3,21 +3,7 @@
 import { useState } from 'react';
 import { CalendarDays, Sparkles } from 'lucide-react';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input } from '@edunexa/ui';
-
-const taskPool = [
-  'Mathematics — Quadratic Equations',
-  'Mathematics — Linear Equations',
-  'Mathematics — Triangles',
-  'Mathematics — Algebra revision',
-  'Science — Life Processes',
-  'Science — Electricity',
-  'Science — Carbon compounds',
-  'English — Reading comprehension',
-  'English — Grammar practice',
-  'Social Studies — History',
-  'Social Studies — Geography',
-  'Mock exam + review weak topics',
-];
+import { useSubjects } from '@/lib/queries';
 
 interface PlanDay {
   label: string;
@@ -26,6 +12,8 @@ interface PlanDay {
 }
 
 export function PlannerView() {
+  const { data } = useSubjects();
+  const subjects = data?.items ?? [];
   const [examDate, setExamDate] = useState('');
   const [hours, setHours] = useState('2');
   const [plan, setPlan] = useState<PlanDay[] | null>(null);
@@ -38,10 +26,12 @@ export function PlannerView() {
       Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     const safeDays = Math.max(1, Math.min(days, 14));
 
-    // Rotate through the task pool across the available days (roughly two tasks
-    // per day at two hours), ending on a mock-exam review day.
+    const pool = subjects.length
+      ? subjects.map((s) => `${s.name} — revise all ${s._count?.chapters ?? 0} chapters`)
+      : ['Flexible revision block'];
+
     const perDay = Math.max(1, Math.round((Number(hours) || 1) / 1));
-    const shuffled = [...taskPool].sort(() => Math.random() - 0.5);
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
 
     const generated: PlanDay[] = [];
     for (let i = 0; i < safeDays; i++) {
@@ -49,7 +39,7 @@ export function PlannerView() {
       const start = i * perDay;
       const tasks = shuffled.slice(start, start + perDay);
       if (i === safeDays - 1) {
-        tasks.push('Mock exam + review weak topics');
+        tasks.push('Practice with a full-length mock paper');
       }
       generated.push({
         label,
@@ -137,8 +127,8 @@ export function PlannerView() {
       ) : null}
 
       <p className="text-sm text-muted-foreground">
-        Demo generator running in the browser — a synced, editable plan arrives with the engagement
-        API phase.
+        Study blocks are built from the published Class 10 curriculum. A synced, editable plan
+        arrives with the engagement API phase.
       </p>
     </div>
   );

@@ -3,10 +3,10 @@ import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from
 export const metadata = { title: 'Teacher Dashboard' };
 
 const stats = [
-  { label: 'My classes', value: '2' },
-  { label: 'Students', value: '86' },
-  { label: 'Question bank', value: '142' },
-  { label: 'Papers exported', value: '9' },
+  { label: 'My classes', value: '0' },
+  { label: 'Students', value: '—' },
+  { label: 'Question bank', value: '0' },
+  { label: 'Papers exported', value: '0' },
 ];
 
 export default function TeacherPage() {
@@ -33,20 +33,19 @@ export default function TeacherPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Class 10-A</CardTitle>
-            <CardDescription>Average score 72% · strong: Algebra · weak: Geometry</CardDescription>
+            <CardTitle>Classes</CardTitle>
+            <CardDescription>No classes linked yet.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="flex gap-2">
             <Badge variant="secondary">Assignments</Badge>
             <Badge variant="secondary">Quizzes</Badge>
             <Badge variant="secondary">Exams</Badge>
-            <Badge variant="secondary">Performance</Badge>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle>Recent question papers</CardTitle>
-            <CardDescription>Mathematics mid-term (40 marks) · Science unit test (25 marks)</CardDescription>
+            <CardDescription>No question papers exported yet.</CardDescription>
           </CardHeader>
         </Card>
       </div>

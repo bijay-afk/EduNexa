@@ -8,7 +8,7 @@ export default function QuizPage() {
       <div>
         <h1 className="text-2xl font-bold">Quizzes</h1>
         <p className="text-muted-foreground">
-          Practice quizzes with instant feedback. Start a sample quiz below.
+          Practice quizzes with instant feedback.
         </p>
       </div>
       <QuizCenter />

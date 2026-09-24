@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -23,8 +22,8 @@ export default function DashboardPage() {
 
   const stats = [
     { icon: Library, label: 'Subjects available', value: subjects.length || '—' },
-    { icon: Timer, label: 'Quizzes ready', value: '3' },
-    { icon: Flame, label: 'Study streak', value: '6 days' },
+    { icon: Timer, label: 'Quizzes ready', value: '0' },
+    { icon: Flame, label: 'Study streak', value: '—' },
   ];
 
   return (
@@ -62,8 +61,8 @@ export default function DashboardPage() {
             <CardDescription>Across all subjects</CardDescription>
           </CardHeader>
           <CardContent>
-            <Progress value={72} aria-label="72 percent complete" className="h-2.5" />
-            <p className="mt-3 text-sm text-muted-foreground">72% complete · demo analytics</p>
+            <Progress value={0} aria-label="0 percent complete" className="h-2.5" />
+            <p className="mt-3 text-sm text-muted-foreground">No progress recorded yet.</p>
           </CardContent>
         </Card>
 
@@ -111,7 +110,7 @@ export default function DashboardPage() {
             <p className="text-sm text-destructive">{error.message}</p>
           ) : subjects.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No subjects found. Start the API and run the seed.
+              No subjects published yet.
             </p>
           ) : (
             <div className="grid gap-x-10 gap-y-5 md:grid-cols-2">
@@ -138,21 +137,16 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="text-2xl">Upcoming</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-muted-foreground">
-            <p>• Mathematics Quiz — Friday</p>
-            <p>• Science Test — next Tuesday</p>
-            <p>
-              <Badge variant="outline">2 this week</Badge>
-            </p>
+          <CardContent className="text-muted-foreground">
+            <p>Nothing scheduled yet.</p>
           </CardContent>
         </Card>
         <Card className="border-border/60">
           <CardHeader>
             <CardTitle className="text-2xl">Recent activity</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-muted-foreground">
-            <p>• Completed Algebra</p>
-            <p>• Scored 8/10 in Physics quiz</p>
+          <CardContent className="text-muted-foreground">
+            <p>No recent activity yet.</p>
           </CardContent>
         </Card>
       </div>

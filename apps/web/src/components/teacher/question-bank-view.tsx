@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { Badge, Card, CardContent, Input } from '@edunexa/ui';
 
-interface DemoQuestion {
+interface Question {
   id: string;
   subject: string;
   chapter: string;
@@ -13,16 +13,7 @@ interface DemoQuestion {
   text: string;
 }
 
-const questions: DemoQuestion[] = [
-  { id: 'q-1', subject: 'Mathematics', chapter: 'Algebra', type: 'MCQ', difficulty: 'Easy', text: 'Factorise x² − 9' },
-  { id: 'q-2', subject: 'Mathematics', chapter: 'Quadratic Equations', type: 'Short answer', difficulty: 'Medium', text: 'Find the roots of x² − 5x + 6 = 0' },
-  { id: 'q-3', subject: 'Mathematics', chapter: 'Triangles', type: 'Long answer', difficulty: 'Medium', text: 'Prove angle sum of a triangle is 180°' },
-  { id: 'q-4', subject: 'Mathematics', chapter: 'Probability', type: 'MCQ', difficulty: 'Hard', text: 'Probability of drawing two aces without replacement' },
-  { id: 'q-5', subject: 'Science', chapter: 'Life Processes', type: 'MCQ', difficulty: 'Easy', text: 'Site of gaseous exchange in humans' },
-  { id: 'q-6', subject: 'Science', chapter: 'Electricity', type: 'Short answer', difficulty: 'Medium', text: 'State Ohm’s law and its formula' },
-  { id: 'q-7', subject: 'Science', chapter: 'Carbon Compounds', type: 'Long answer', difficulty: 'Hard', text: 'Distinguish saturated and unsaturated hydrocarbons' },
-  { id: 'q-8', subject: 'English', chapter: 'Grammar', type: 'MCQ', difficulty: 'Easy', text: 'Choose the correct passive voice form' },
-];
+const questions: Question[] = [];
 
 const typeFilters = ['All', 'MCQ', 'Short answer', 'Long answer'] as const;
 
@@ -72,13 +63,17 @@ export function QuestionBankView() {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        {visible.length} of {questions.length} questions shown
+        {questions.length === 0
+          ? 'Your question bank is empty'
+          : `${visible.length} of ${questions.length} questions shown`}
       </p>
 
       {visible.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No questions match “{term}”. Try a different search term or filter.
+            {questions.length === 0
+              ? 'No questions yet. Questions you author or generate will appear here.'
+              : `No questions match "${term}". Try a different search term or filter.`}
           </CardContent>
         </Card>
       ) : (
@@ -109,11 +104,6 @@ export function QuestionBankView() {
           ))}
         </div>
       )}
-
-      <p className="text-sm text-muted-foreground">
-        Demo question list in page state — the synced, taggable question bank arrives with the
-        assessment API.
-      </p>
     </div>
   );
 }

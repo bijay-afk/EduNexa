@@ -4,22 +4,15 @@ import { useState } from 'react';
 import { Bell, CheckCheck, Trash2 } from 'lucide-react';
 import { Badge, Button, Card, CardContent } from '@edunexa/ui';
 
-interface DemoNotification {
+interface NotificationItem {
   id: string;
   type: string;
   title: string;
   read: boolean;
 }
 
-const initialNotifications: DemoNotification[] = [
-  { id: 'n-1', type: 'Quiz reminder', title: 'Algebra quiz opens today', read: false },
-  { id: 'n-2', type: 'New content', title: 'Science — Carbon compounds notes published', read: false },
-  { id: 'n-3', type: 'Study reminder', title: 'You have a 2-hour block scheduled for Mathematics', read: true },
-  { id: 'n-4', type: 'Exam', title: 'Mock exam seat allocation is now available', read: false },
-];
-
 export function NotificationsView() {
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const unread = notifications.filter((n) => !n.read).length;
 
   function markRead(id: string) {
@@ -81,10 +74,6 @@ export function NotificationsView() {
           ))}
         </div>
       )}
-
-      <p className="text-sm text-muted-foreground">
-        Demo notifications in page state — real-time updates arrive with the notification service.
-      </p>
     </div>
   );
 }

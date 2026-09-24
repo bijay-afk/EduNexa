@@ -4,50 +4,17 @@ import { useState } from 'react';
 import { Bookmark, Trash2 } from 'lucide-react';
 import { Badge, Button, Card, CardContent } from '@edunexa/ui';
 
-interface DemoBookmark {
+interface Bookmark {
   id: string;
   type: 'Formula' | 'Note' | 'Question';
   title: string;
   ref: string;
 }
 
-const initialBookmarks: DemoBookmark[] = [
-  {
-    id: 'bm-1',
-    type: 'Formula',
-    title: 'Quadratic formula',
-    ref: 'Mathematics · Quadratic Equations',
-  },
-  {
-    id: 'bm-2',
-    type: 'Note',
-    title: 'Photosynthesis overview',
-    ref: 'Science · Life Processes',
-  },
-  {
-    id: 'bm-3',
-    type: 'Question',
-    title: 'Factorise x² − 9',
-    ref: 'Mathematics · Algebra',
-  },
-  {
-    id: 'bm-4',
-    type: 'Formula',
-    title: 'Distance formula',
-    ref: 'Mathematics · Coordinate Geometry',
-  },
-  {
-    id: 'bm-5',
-    type: 'Note',
-    title: 'Ohm’s law summary',
-    ref: 'Science · Electricity',
-  },
-];
-
 const filters = ['All', 'Formula', 'Note', 'Question'] as const;
 
 export function BookmarksView() {
-  const [bookmarks, setBookmarks] = useState(initialBookmarks);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [filter, setFilter] = useState<(typeof filters)[number]>('All');
 
   const visible = filter === 'All' ? bookmarks : bookmarks.filter((b) => b.type === filter);
@@ -117,11 +84,6 @@ export function BookmarksView() {
           ))}
         </div>
       )}
-
-      <p className="text-sm text-muted-foreground">
-        Demo bookmarks stored in this page’s state — saving from topics and a synced endpoint land
-        with the engagement API.
-      </p>
     </div>
   );
 }
