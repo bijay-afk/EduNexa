@@ -1,17 +1,19 @@
 import type { NextConfig } from 'next';
 
-// Public base URL of the NestJS API. When set, /api/v1/* requests from the
-// browser are proxied server-side (same-origin), avoiding CORS entirely since
-// the API disables CORS in production. Leave unset to keep the fallback
-// http://localhost:3000 during local development.
+// Public base URL of the NestJS API, proxied server-side for every /api/v1/*
+// request (same-origin, so no CORS and no absolute localhost URLs in the
+// browser). Local dev proxies to the API on port 3100; production proxies to
+// the live Render API. Override with API_UPSTREAM when needed.
 const productionApiUpstream = 'https://edunexa-api.onrender.com';
-const apiUpstream = process.env.API_UPSTREAM ?? (process.env.NODE_ENV === 'production' ? productionApiUpstream : undefined);
+const devApiUpstream = 'http://localhost:3100';
+const apiUpstream =
+  process.env.API_UPSTREAM ??
+  (process.env.NODE_ENV === 'production' ? productionApiUpstream : devApiUpstream);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   async rewrites() {
-    if (!apiUpstream) return [];
     return [
       {
         source: '/api/v1/:path*',

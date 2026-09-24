@@ -1,6 +1,13 @@
 export { cn } from '@edunexa/ui';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3100';
+// Same-origin base: /api/v1/* is proxied server-side by the Next.js rewrite in
+// next.config.ts (local dev → localhost:3100, production → the live Render API).
+// This avoids CORS entirely and removes the old absolute-URL/localhost fallback
+// that broke subjects/content whenever the API moved or the site was deployed.
+const API_BASE = '';
+
+const serverApiBase = () =>
+  process.env.API_UPSTREAM ?? (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3100');
 
 export interface ApiError {
   code: string;
@@ -60,11 +67,18 @@ export async function apiRequest<T>(
   };
   if (init?.token) headers.Authorization = `Bearer ${init.token}`;
 
+  // Relative URLs only work in the browser; on the server (SSR/prerender)
+  // resolve an absolute origin instead so fetch() can parse the URL.
+  const base = API_BASE || (typeof window === 'undefined' ? serverApiBase() : '');
+
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/api/v1${path}`, { ...init, headers });
+    res = await fetch(`${base}/api/v1${path}`, { ...init, headers });
   } catch (cause) {
-    throw new Error(`Unable to reach the API at ${API_BASE} — is the server running?`, { cause });
+    throw new Error(
+      `Unable to reach the API at ${base || `${typeof window !== 'undefined' ? window.location.origin : '(server)'}`} — is the API running?`,
+      { cause },
+    );
   }
 
   const body = await res.json().catch(() => null);
