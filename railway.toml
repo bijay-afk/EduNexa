@@ -1,0 +1,28 @@
+# Railway blueprint — NestJS API on Railway (always-on, no cold starts).
+#
+# CLI (preferred):
+#   railway login             # opens a browser; NO credit card required
+#   railway init              # creates/link a project
+#   railway variables --set DATABASE_URL="postgresql://postgres:<pw>@db.<ref>.supabase.co:6543/postgres?sslmode=require"
+#   railway variables --set JWT_SECRET="<>=16 chars"
+#   railway variables --set REDIS_URL="redis://localhost:6379"
+#   railway up
+#
+# Or: dashboard → New Project → Deploy from GitHub → pick this repo → add the
+# secret env vars above → Railway auto-detects this file and builds it.
+
+[env]
+NODE_ENV = "production"
+PORT = "3000"
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "infrastructure/docker/Dockerfile.api-render"
+
+[deploy]
+# The image CMD already runs db push + seed + boot; keep it explicit so the
+# railway.toml self-documents the startup order.
+startCommand = "sh -c \"npx prisma db push --skip-generate && npx prisma db seed && node dist/main.js\""
+healthcheckPath = "/api/v1/health"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
