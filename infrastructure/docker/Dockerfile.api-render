@@ -26,5 +26,6 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages ./packages
 COPY --from=build /app/apps/api ./apps/api
 WORKDIR /app/apps/api
+COPY infrastructure/docker/debug-health.js /debug-health.js
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npx prisma db seed && node dist/main.js"]
+CMD ["node", "/debug-health.js"]
