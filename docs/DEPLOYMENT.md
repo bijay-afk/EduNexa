@@ -7,8 +7,10 @@ to actually deploy it and unblock the database seed.
 
 > **Why Railway?** The API is *always-on* — no free-tier sleep/cold starts, so
 > every request hits a warm server. The **free trial needs no credit card**
-> ($5 of usage credits for 30 days; the running API costs a few cents a month).
-> No card is required to sign up or deploy.
+> ($5 of usage credits for 30 days). **After the trial**: the `$0/mo` Free plan
+> (~`$1` usage credit) only covers the API if it uses sleep-on-inactivity (small
+> cold start) — for full 24/7 uptime you'd move to Hobby (`$5/mo`, needs a card)
+> or a card-less always-on host such as Koyeb's free tier.
 
 The seed (`apps/api/prisma/seed.ts`) is an idempotent, upsert-based upsert of the
 full Class 10 SEE curriculum (7 subjects → chapters → topics → content blocks).
