@@ -3,8 +3,8 @@ import type { NextConfig } from 'next';
 // Public base URL of the NestJS API, proxied server-side for every /api/v1/*
 // request (same-origin, so no CORS and no absolute localhost URLs in the
 // browser). Local dev proxies to the API on port 3100; production proxies to
-// the live Render API. Override with API_UPSTREAM when needed.
-const productionApiUpstream = 'https://edunexa-api.onrender.com';
+// the live Railway API. Override with API_UPSTREAM when needed.
+const productionApiUpstream = 'https://api-production-836b.up.railway.app';
 const devApiUpstream = 'http://localhost:3100';
 const apiUpstream =
   process.env.API_UPSTREAM ??

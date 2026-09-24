@@ -2,8 +2,8 @@
 
 How to take EduNexa from this repo to a live, seeded API (`apps/api` on Railway)
 + web app (`apps/web` on Vercel). Everything infra-related is already committed
-(`railway.toml`, `Dockerfile.api-render`); this file is the click-by-click path
-to actually deploy it and unblock the database seed.
+(`Dockerfile.api-render`); this file is the click-by-click path to actually
+deploy it and unblock the database.
 
 > **Why Railway?** The API is *always-on* — no free-tier sleep/cold starts, so
 > every request hits a warm server. The **free trial needs no credit card**
@@ -12,12 +12,8 @@ to actually deploy it and unblock the database seed.
 > cold start) — for full 24/7 uptime you'd move to Hobby (`$5/mo`, needs a card)
 > or a card-less always-on host such as Koyeb's free tier.
 
-The seed (`apps/api/prisma/seed.ts`) is an idempotent, upsert-based upsert of the
-full Class 10 SEE curriculum (7 subjects → chapters → topics → content blocks).
-It can only be proven once a real Postgres exists. **Providing the Supabase
-`DATABASE_URL` (step 2) is the single dependency that unblocks the whole deploy.**
-
-Source of truth: GitHub repo `bijay-00/EduNexa` → `main`.
+Source of truth: GitHub repo `bijay-afk/EduNexa` → `main`.
+Production API: `https://api-production-836b.up.railway.app`.
 
 ---
 
@@ -25,37 +21,49 @@ Source of truth: GitHub repo `bijay-00/EduNexa` → `main`.
 
 Go to railway.com → **Sign up** (GitHub is fastest). No credit card required.
 
-## 2. Create the Supabase Postgres (`DATABASE_URL`)
+## 2. The Supabase Postgres (`DATABASE_URL`)
 
-The schema/seed run against **Supabase** (managed Postgres).
+The schema/data live in **Supabase** (managed Postgres).
 
-1. Go to supabase.com → **New project** → pick a region (any) → set a DB
-   password → **Create project**.
-2. Project dashboard → **Connect → Connection string** → copy the
-   **pgBouncer / transaction-pooler** string (`postgresql://…:6543/…`). Port
-   **6543** is reliable; the direct `:5432` host can be flaky (IPv6-only).
-3. Save it — this is your **`DATABASE_URL`** secret. Do not commit it.
+1. supabase.com → **Project → Connect → Connection string** → copy the
+   **Transaction pooler** string on port **6543**
+   (`postgresql://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:6543/postgres`).
+   Use this exact shape — the direct `db.<ref>.supabase.co` host is IPv6-only
+   and routes fail from Railway (and many home networks).
+2. For Prisma to work through the transaction pooler you **must** append:
+   `?pgbouncer=true&connection_limit=1`
+3. Final value (example — never commit it):
 
-> Save for later:
-> - `DATABASE_URL` → from this step
-> - `JWT_SECRET` → your own random value ≥16 chars
+```
+postgresql://postgres.xrhdakmfgmenijovvhfl:<pw>@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+```
 
-## 3. Redis (`REDIS_URL`) — optional
+> Verify it: `npx prisma db execute` / a quick script that connects with the
+> Prisma client and runs a count against `User`. Confirmed working from both a
+> home connection and the Railway container (connect ~800ms).
 
-The API **boots fine without Redis** (verified: `/ready` reports `redis: down`
-but health/curriculum stay 200). Only the AI question-generator needs it.
+## 3. Apply schema + seed (once, locally)
 
-- Set `REDIS_URL=redis://localhost:6379` (unused) or omit it for now.
-- To add later: Upstash free tier → copy `REDIS_URL` → redeploy.
+The production image does **not** run `prisma db push`/`db seed` at boot:
+`prisma db push` is DDL, hangs indefinitely through the transaction pooler, and
+re-running a heavy seed on every deploy is wasteful. Schema + seed are applied
+once from your machine:
+
+```bash
+# from repo root (uses apps/api/.env, already on the pooler URL)
+npm run db:push     # or: npx prisma db push --schema apps/api/prisma/schema.prisma
+npm run db:seed     # or: npx prisma db seed --schema apps/api/prisma/schema.prisma
+```
+
+The seed is idempotent (upserts); re-running is safe. You're done with the DB
+once `npx prisma studio` shows `NEP-GRADE10` + 7 subjects.
 
 ## 4. Deploy the API on Railway
 
-`railway.toml` at the repo root builds the existing `Dockerfile.api-render`,
-exposes the app on port 3000, and uses `/api/v1/health` as the health check.
-Railway services never scale to zero, so the API is warm on every request.
-
-The container runs `prisma db push` + `prisma db seed` on first boot, then
-starts the API.
+`Dockerfile.api-render` builds the API and boots with `node dist/main.js`
+(healthcheck `/api/v1/health`, published port **3000**). Those two settings are
+the ones that make Railway treat a deploy as healthy — with neither, deploys
+silently FAIL with no logs and the domain returns 502.
 
 **CLI (fastest):**
 
@@ -64,62 +72,78 @@ starts the API.
 npm i -g @railway/cli
 railway login            # opens a browser — no card needed
 # from the repo root
-railway init             # select "create a new project" (or link an existing one)
+railway init             # create a new project, or link an existing one
 
-# set the secrets (steps 2–3)
-railway variables --set DATABASE_URL="postgresql://postgres:<pw>@db.<ref>.supabase.co:6543/postgres?sslmode=require"
+# secrets (steps 2–3)
+railway variables --set DATABASE_URL="postgresql://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
 railway variables --set JWT_SECRET="<random >= 16 chars>"
-railway variables --set REDIS_URL="redis://localhost:6379"
+railway variables --set REDIS_URL="redis://localhost:6379"   # optional, see §5
+
+# one-time service config: root ".", Dockerfile, no startCommand override
+railway api -f infrastructure/docker/railway-service.graphql   # see note below
 
 # deploy
 railway up
 ```
 
+> **Railway service config (`railway-service.graphql`)** — the repo ships a
+> GraphQL mutation at `infrastructure/docker/railway-service.graphql` that sets
+> `rootDirectory: "."`, `dockerfilePath`, clears `startCommand` (so the
+> Dockerfile `CMD` wins), sets healthcheck `/api/v1/health`, and publishes
+> `targetPort: 3000`. Run it once per new service/environment:
+> `railway api -f infrastructure/docker/railway-service.graphql`
+
 **Dashboard (no CLI):**
 
 1. railway.com → **New Project** → **Deploy from GitHub repo** → pick `EduNexa`
-   / `main`. Railway auto-detects `railway.toml` and builds the Dockerfile.
-2. Project → **Variables** → add `DATABASE_URL`, `JWT_SECRET`, and
-   `REDIS_URL` (the three values above).
-3. Railway deploys automatically. Monitor the build log for `Seed complete.`
+   / `main`.
+2. **Deploy → Settings**: Service source = Dockerfile
+   `infrastructure/docker/Dockerfile.api-render`, **Root directory** = `.`;
+   leave Start Command **empty**. **Healthcheck path** = `/api/v1/health`.
+   Under **Networking**, publish the service domain on port **3000**.
+3. Add the three variables above. Railway deploys automatically.
 
-Get your URL: `railway domain` (trial gets `*.up.railway.app`; the free plan
-allows one custom domain if you have one).
+Verify it's actually healthy (not just "SUCCESS"): the public domain must answer:
+`curl https://<your-api>.up.railway.app/api/v1/health` → `200`.
 
-## 5. Verify the API is live + seeded
+## 5. Redis (`REDIS_URL`) — optional
 
-Once the service reports healthy:
+The API **boots fine without Redis** (health/curriculum stay 200). Only the AI
+question-generator needs it.
+
+- Set `REDIS_URL=redis://localhost:6379` (unused) or omit it for now.
+- To add later: Upstash free tier → copy `REDIS_URL` → redeploy.
+
+## 6. Verify the API is live + seeded
 
 ```bash
 curl https://<your-api>.up.railway.app/api/v1/health
 curl https://<your-api>.up.railway.app/api/v1/curriculums
+curl https://<your-api>.up.railway.app/api/v1/curriculums/<NEP-GRADE10-uuid>/grades
+curl "https://<your-api>.up.railway.app/api/v1/grades/<grade-uuid>/subjects?limit=100"
 ```
 
-Expected:
-- `/api/v1/health` → `200 {"data":{"status":"ok",...}}`
-- `/api/v1/curriculums` → includes `NEP-GRADE10` ("Nepal Grade 10 Curriculum")
-- Boot log shows `Curriculum ready: …` then `Seed complete.`
+Expected: health `200 {"data":{"status":"ok",…}}`; curriculums include
+`NEP-GRADE10`; grades return the `10` grade; subjects return the 7 subjects
+(Mathematics, Science, English, Nepali, Social Studies, Optional Mathematics,
+Computer Science).
 
-If the seed errored, the API fails fast (seed failure is fatal) — inspect the
-log for the failed upsert / connection string.
+## 7. Point Vercel at the live API
 
-## 6. Point Vercel at the live API
-
-`apps/web` proxies `/api/v1/*` upstream via `API_UPSTREAM` (the Next.js rewrite
-in `apps/web/next.config.ts` handles it server-side — no CORS, no
-`NEXT_PUBLIC_API_URL` needed).
+`apps/web` proxies `/api/v1/*` server-side via `next.config.ts` (`API_UPSTREAM`,
+no CORS, no `NEXT_PUBLIC_API_URL`). The committed default now points at
+`https://api-production-836b.up.railway.app`, but an explicit env is safest:
 
 1. Vercel → project `edunexa` (team `bijay-00`) → **Settings → Environment
-   Variables** → set:
-   - `API_UPSTREAM` → `https://<your-api>.up.railway.app`
-2. **Redeploy** (or push to `main` — Vercel auto-deploys since it's git-linked
-   when author permissions allow).
+   Variables** → set `API_UPSTREAM` → `https://api-production-836b.up.railway.app`.
+2. **Redeploy** (or push to `main` — Vercel auto-deploys when author
+   permissions allow).
 
-## 7. Updating after this
+## 8. Updating after this
 
-- **API / seed / schema change**: push to `main` (or `railway up`) → Railway
-  rebuilds, re-runs `db push` + `db seed`, and boots. Idempotent upserts mean
-  re-seeding is always safe.
+- **API code change**: `railway up` (or push to `main` if the Railway service is
+  GitHub-sourced) → Railway rebuilds + reboots. No re-seed needed.
+- **DB schema/seed change**: run `db push`/`db seed` locally first, then redeploy.
 - **Web change**: push to `main` → Vercel auto-deploys.
 
 ---
@@ -128,16 +152,18 @@ in `apps/web/next.config.ts` handles it server-side — no CORS, no
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| API crashes at boot, log mentions Redis | `REDIS_URL` unreachable | remove the var or set a reachable Upstash URL (AI features need it) |
-| `DATABASE_URL` connection refused | wrong/other-instance URL | use the pooler string (port `6543`); ensure the Supabase project isn't paused |
-| Seed `P2002` unique violation | none normally — seed is upsert-based | check you ran `db push` first (start command does) |
-| Web can't reach API | env empty on Vercel | set `API_UPSTREAM` (step 6), Redeploy |
+| Deploy shows `FAILED` with **no logs**, or domain 502 | no healthcheck and/or no published port | set healthcheck `/api/v1/health`; publish target port **3000** (see §4) |
+| App boots but silently hangs in logs after `Prisma schema loaded` | `prisma db push` in the start command hitting the transaction pooler | use the Dockerfile `CMD node dist/main.js`, no start command |
+| `P1001` at deploy / runtime | `DATABASE_URL` on the IPv6-only direct host | use the `aws-0-*.pooler.supabase.com` string (port 6543) + `?pgbouncer=true&connection_limit=1` |
+| `prepared statement "s0" already exists` (prisma db push) | DDL through transaction pooler | don't run `db push` in the image; run it from your machine (§3) |
+| `DATABASE_URL` changes don't apply | variables cached in the running deployment | `railway redeploy` after `railway variables --set` |
+| Web can't reach API | env empty/old on Vercel | set `API_UPSTREAM`, Redeploy (§7) |
 | Trial credits gone after 30 days | trial window elapsed | switch to the **Free** plan (`$0/mo`, ~$1 usage credit) or Hobby `$5/mo` |
 | Vercel deploy blocked (git author) | author-gate on Vercel git integration | use `vercel deploy --prod` CLI with a token, or add author |
 
 ---
 
-## Remaining hardening (Phase 8, post-MVP)
+## Remaining hardening (post-MVP)
 
 - Replace `prisma db push` with committed migrations (`prisma migrate dev`).
 - Add real JWT rotation/rate limiting on the API.
