@@ -1,6 +1,6 @@
-# NestJS API image for Render (monorepo-aware).
+# NestJS API image for Railway (monorepo-aware, IPv4 pooler DATABASE_URL required).
 # Builds the shared packages + the API workspace, then runs dist/main.js.
-# On startup it also pushes the Prisma schema and applies the idempotent seed.
+# DB schema/seed are applied during development; this image skips db push/seed.
 
 FROM node:24-alpine AS deps
 WORKDIR /app
@@ -26,6 +26,5 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages ./packages
 COPY --from=build /app/apps/api ./apps/api
 WORKDIR /app/apps/api
-COPY infrastructure/docker/debug-health.js /debug-health.js
 EXPOSE 3000
-CMD ["node", "/debug-health.js"]
+CMD ["node", "dist/main.js"]
