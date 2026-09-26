@@ -22,10 +22,11 @@ export class RateLimiterService implements OnModuleDestroy {
   private readonly logger = new Logger(RateLimiterService.name);
   private readonly buckets = new Map<string, number[]>();
   private readonly sweep: NodeJS.Timeout;
+  private now: () => number = Date.now;
 
-  constructor(private readonly now: () => number = Date.now) {
+  constructor() {
     // Old, empty buckets are deleted so an idle key never leaks memory.
-    this.sweep = setInterval(() => this.sweepExpired(now()), 5 * 60 * 1000);
+    this.sweep = setInterval(() => this.sweepExpired(this.now()), 5 * 60 * 1000);
     this.sweep.unref();
   }
 
@@ -75,6 +76,11 @@ export class RateLimiterService implements OnModuleDestroy {
   /** Test/support helper: current outstanding count for a key. */
   peek(key: string): number {
     return this.buckets.get(key)?.length ?? 0;
+  }
+
+  /** Test-only time source so window math is deterministic. */
+  setClock(now: () => number): void {
+    this.now = now;
   }
 
   private sweepExpired(now: number): void {

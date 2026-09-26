@@ -158,6 +158,21 @@ export class LlmProvider {
 }
 
 function parseJson(raw: string): unknown {
-  const trimmed = raw.trim().replace(/^```(?:json)?/i, '').replace(/```$/m, '').trim();
-  return JSON.parse(trimmed);
+  const cleaned = raw
+    .trim()
+    .replace(/^```(?:json)?\s*[\r\n]*/i, '')
+    .replace(/```\s*[\r\n]*$/m, '')
+    .trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Small local models sometimes append a stray token/prose after the
+    // object. Recover by parsing just the first {...} region.
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return JSON.parse(cleaned.slice(start, end + 1));
+    }
+    throw new SyntaxError('LLM output did not contain valid JSON');
+  }
 }

@@ -56,7 +56,7 @@ export class RetrievalService {
 
     const patterns = terms.map((t) => `%${encodeLike(t)}%`);
     const rows = await this.prisma.$queryRaw<RetrievedSourceRow[]>(
-      this.scopedQuery(q, Prisma.sql`pg."ocrText" ILIKE ANY (${Prisma.join(patterns)})`),
+      this.scopedQuery(q, Prisma.sql`pg."ocrText" ILIKE ANY (ARRAY[${Prisma.join(patterns)}])`),
     );
 
     const scored = rows
@@ -84,7 +84,7 @@ export class RetrievalService {
         FROM "PaperArchivePage" pg
         JOIN "PaperArchive" p ON p."id" = pg."paperId"
         WHERE pg."embedding" IS NOT NULL
-          AND pg."ocrState" IN (${Prisma.join(RETRIEVABLE_OCR_STATES)})
+          AND pg."ocrState" IN (${Prisma.join(RETRIEVABLE_OCR_STATES.map((s) => Prisma.sql`${s}::"OcrState"`))})
           ${this.subjectFilter(q.archiveSubject)}
           ${queryExamFilter(q.archiveExamTypes)}
         ORDER BY pg."embedding" <=> CAST(${vec} AS vector)
@@ -112,7 +112,7 @@ export class RetrievalService {
     return Prisma.sql`SELECT ${PAGE_COLUMNS}
       FROM "PaperArchivePage" pg
       JOIN "PaperArchive" p ON p."id" = pg."paperId"
-      WHERE pg."ocrState" IN (${Prisma.join(RETRIEVABLE_OCR_STATES)})
+      WHERE pg."ocrState" IN (${Prisma.join(RETRIEVABLE_OCR_STATES.map((s) => Prisma.sql`${s}::"OcrState"`))})
         AND pg."ocrText" IS NOT NULL AND pg."ocrText" <> ''
         ${this.subjectFilter(q.archiveSubject)}
         ${queryExamFilter(q.archiveExamTypes)}
@@ -173,7 +173,7 @@ interface RetrievedSourceRow {
 
 function queryExamFilter(examTypes?: PaperExamType[]): Prisma.Sql {
   if (!examTypes?.length) return Prisma.sql`AND TRUE`;
-  return Prisma.sql`AND p."examType" IN (${Prisma.join(examTypes)})`;
+  return Prisma.sql`AND p."examType" IN (${Prisma.join(examTypes.map((e) => Prisma.sql`${e}::"PaperExamType"`))})`;
 }
 
 /** Lowercase, alphanumeric-only terms of length > 2. */

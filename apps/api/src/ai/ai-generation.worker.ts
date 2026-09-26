@@ -4,7 +4,7 @@ import { Worker } from 'bullmq';
 import Redis from 'ioredis';
 import { QUESTION_GENERATION_QUEUE } from './ai-queue.service';
 import { AiGenerationService } from './ai-generation.service';
-import type { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 interface QueueJobData {
   generationId: string;

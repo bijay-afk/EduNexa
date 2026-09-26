@@ -47,7 +47,7 @@ async function report() {
   const withOcr = await prisma.paperArchivePage.count({ where: { ocrText: { not: null, not: '' } } });
 
   // embedding is an unmapped pgvector column -> raw SQL only.
-  const [withEmbedding, missing] = await prisma.$queryRaw<
+  const [withEmbeddingRow] = await prisma.$queryRaw<
     { c: bigint }[]
   >(
     Prisma.sql`SELECT (SELECT COUNT(*) FROM "PaperArchivePage" WHERE "embedding" IS NOT NULL) AS c`,
@@ -58,7 +58,7 @@ async function report() {
     Prisma.sql`SELECT COUNT(*)::bigint AS c FROM "PaperArchivePage" WHERE "ocrText" IS NOT NULL AND "ocrText" <> '' AND "embedding" IS NULL`,
   );
 
-  const emb = Number(withEmbedding[0]?.c ?? 0);
+  const emb = Number(withEmbeddingRow?.c ?? 0);
   const miss = Number(missingRow?.c ?? 0);
 
   console.log(`pages          total: ${total}`);

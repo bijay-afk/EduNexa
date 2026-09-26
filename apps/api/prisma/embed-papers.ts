@@ -82,7 +82,10 @@ async function main() {
     const text = page.ocrText!.trim();
     if (!text) continue;
     const [vec] = await embed([text]);
-    const sql = `UPDATE "PaperArchivePage" SET embedding = CAST(? AS vector) WHERE id = ? AND embedding IS NULL`;
+    // PostgreSQL native positional params + explicit vector cast at the
+    // boundary. Prisma's `?` placeholder mis-binds for pgvector casts, so use
+    // $1/$2 directly (verified against the live DB).
+    const sql = `UPDATE "PaperArchivePage" SET embedding = $1::vector WHERE id = $2 AND embedding IS NULL`;
     try {
       await prisma.$executeRawUnsafe(sql, `[${vec.join(',')}]`, page.id);
       done++;
