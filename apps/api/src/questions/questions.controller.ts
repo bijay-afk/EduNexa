@@ -1,7 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, type AuthenticatedUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { RateLimit } from '../ratelimit/rate-limit.decorator';
+import { RateLimitGuard } from '../ratelimit/rate-limit.guard';
 import { QuestionsService } from './questions.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
@@ -13,17 +15,20 @@ import type { QuestionStatus } from '@prisma/client';
 
 @ApiTags('questions')
 @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
+@UseGuards(RateLimitGuard)
 @Controller('questions')
 export class QuestionsController {
   constructor(private readonly questionsService: QuestionsService) {}
 
   @Post()
+  @RateLimit({ limit: 120, windowMs: 10 * 60_000 })
   @ApiOperation({ summary: 'Create a draft question (teacher) — auto-added to their bank' })
   create(@Body() dto: CreateQuestionDto, @CurrentUser() user: AuthenticatedUser) {
     return this.questionsService.create(user.id, dto);
   }
 
   @Get('bank')
+  @RateLimit({ limit: 600, windowMs: 60_000 })
   @ApiOperation({ summary: 'A teacher\'s question bank with curriculum + provenance; filter by status' })
   getBank(@Query() query: BankQueryDto, @CurrentUser() user: AuthenticatedUser) {
     return this.questionsService.listByOwner(user.id, {
@@ -50,6 +55,7 @@ export class QuestionsController {
   }
 
   @Patch(':id/status')
+  @RateLimit({ limit: 120, windowMs: 10 * 60_000 })
   @ApiOperation({ summary: 'Teacher review gate: approve, reject, or move through review states' })
   setStatus(
     @Param('id') id: string,
@@ -60,6 +66,7 @@ export class QuestionsController {
   }
 
   @Patch(':id')
+  @RateLimit({ limit: 120, windowMs: 10 * 60_000 })
   @ApiOperation({ summary: 'Edit an owned question (not approved/archived); bumps version + audit' })
   update(
     @Param('id') id: string,

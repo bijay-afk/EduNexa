@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, HttpException, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiQueueService } from './ai-queue.service';
 import { AiGenerationWorker } from './ai-generation.worker';
@@ -209,14 +209,27 @@ export class AiService {
         await this.processor.process(generation.id);
       } else if (this.worker.available) {
         await this.queue.queue.add('llm', { generationId: generation.id, generator: 'LLM' });
-      } else {
+      } else if (process.env.AI_SYNC_FALLBACK !== 'false') {
+        // Development convenience only: run in-process when Redis is down.
         await this.prisma.aiGeneration.update({
           where: { id: generation.id },
           data: { state: 'PROCESSING' },
         });
         await this.generationService.generate(generation.id);
+      } else {
+        // Production policy (spec §11, §40): fail safely — never bypass the
+        // queue, or 200 users with no Redis would each hit Ollama directly.
+        const message = 'AI workers are temporarily unavailable. Please try again in a few minutes.';
+        await this.prisma.aiGeneration.update({
+          where: { id: generation.id },
+          data: { state: 'FAILED', error: message },
+        });
+        throw new ServiceUnavailableException(message);
       }
     } catch (err) {
+      if (err instanceof HttpException) {
+        throw err;
+      }
       const message = err instanceof Error ? err.message : 'Generation failed';
       await this.prisma.aiGeneration.update({
         where: { id: generation.id },

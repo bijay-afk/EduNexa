@@ -7,6 +7,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { validateEnv } from './config/env.validation';
 import { PrismaModule } from './prisma/prisma.module';
+import { RateLimitModule } from './ratelimit/rate-limit.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -23,6 +24,7 @@ import { ArchiveModule } from './archive/archive.module';
       validate: validateEnv,
     }),
     PrismaModule,
+    RateLimitModule,
     HealthModule,
     AuthModule,
     UsersModule,

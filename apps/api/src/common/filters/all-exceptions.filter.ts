@@ -65,6 +65,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         return 'UNAUTHORIZED';
       case HttpStatus.FORBIDDEN:
         return 'FORBIDDEN';
+      case HttpStatus.TOO_MANY_REQUESTS:
+        return 'RATE_LIMITED';
       case HttpStatus.NOT_FOUND:
         return 'NOT_FOUND';
       default:

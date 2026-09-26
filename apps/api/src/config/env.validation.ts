@@ -22,6 +22,11 @@ export const envSchema = z.object({
   AI_CONCURRENCY: z.coerce.number().int().min(1).default(1),
   AI_JOB_TIMEOUT_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
   AI_MAX_QUESTIONS_PER_GENERATION: z.coerce.number().int().min(1).default(20),
+  // Dev convenience only: when Redis is down, fall back to running LLM
+  // generation synchronously in the request. Set false in production so AI
+  // requests fail safely (503) instead of flooding Ollama with in-process
+  // calls the queue was meant to serialize (spec §11, §40).
+  AI_SYNC_FALLBACK: z.enum(['true', 'false']).default('true'),
   SENTRY_DSN: z.string().optional(),
 });
 

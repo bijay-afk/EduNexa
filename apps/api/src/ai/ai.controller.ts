@@ -1,17 +1,21 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser, type AuthenticatedUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { RateLimit } from '../ratelimit/rate-limit.decorator';
+import { RateLimitGuard } from '../ratelimit/rate-limit.guard';
 import { AiService } from './ai.service';
 import { UserRole } from '@edunexa/types';
 
 @ApiTags('question-generation')
 @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.SUPER_ADMIN)
+@UseGuards(RateLimitGuard)
 @Controller('question-generation')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post()
+  @RateLimit({ limit: 6, windowMs: 15 * 60_000 })
   @ApiOperation({ summary: 'Generate syllabus-grounded questions from the paper-archive database' })
   enqueue(@Body() config: unknown, @CurrentUser() user: AuthenticatedUser) {
     return this.aiService.enqueueGeneration(user.id, config);

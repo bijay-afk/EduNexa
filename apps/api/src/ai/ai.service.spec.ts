@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { prismaMock, queueMock, generationServiceMock, AiServiceHarness } from '../testing/ai-service.harness';
 import { questionGenerationConfigSchema } from '@edunexa/validation';
 import { extractQuestions } from './question-extractor';
@@ -263,6 +263,24 @@ describe('AiService queue dispatch (spec §16–§20, §24–§25)', () => {
 
     const created = (prismaMock.aiGeneration.create as Mock).mock.calls[0][0].data;
     expect(created.config.count).toBe(5);
+  });
+
+  it('fails safely with 503 when Redis is down and AI_SYNC_FALLBACK=false (production)', async () => {
+    curriculumMocks();
+    const previous = process.env.AI_SYNC_FALLBACK;
+    process.env.AI_SYNC_FALLBACK = 'false';
+    try {
+      const harness = new AiServiceHarness();
+
+      await expect(
+        harness.service.enqueueGeneration('teacher-1', validConfig({ generator: 'LLM' })),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+      expect(generationServiceMock.generate).not.toHaveBeenCalled();
+      expect(queueMock.queue.add).not.toHaveBeenCalled();
+    } finally {
+      if (previous === undefined) delete process.env.AI_SYNC_FALLBACK;
+      else process.env.AI_SYNC_FALLBACK = previous;
+    }
   });
 });
 
