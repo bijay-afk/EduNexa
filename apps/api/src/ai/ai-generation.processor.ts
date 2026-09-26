@@ -128,6 +128,8 @@ export class AiGenerationProcessor {
         },
       });
 
+      await this.ensureBankMembership(generation.teacherId, question.id);
+
       await this.prisma.aiGenerationItem.create({
         data: {
           generationId,
@@ -153,6 +155,20 @@ export class AiGenerationProcessor {
       data: { state: 'COMPLETED', resultCount: created, status: 'ARCHIVE_EXTRACT' },
     });
     this.logger.log(`Generation ${generationId}: created ${created} draft questions`);
+  }
+
+  private async ensureBankMembership(teacherId: string, questionId: string): Promise<void> {
+    const bank = await this.prisma.questionBank.upsert({
+      where: { ownerId: teacherId },
+      update: {},
+      create: { ownerId: teacherId },
+    });
+    const exists = await this.prisma.questionBankItem.findUnique({
+      where: { bankId_questionId: { bankId: bank.id, questionId } },
+    });
+    if (!exists) {
+      await this.prisma.questionBankItem.create({ data: { bankId: bank.id, questionId } });
+    }
   }
 
   private buildMarksPlan(config: GenerateConfig, count: number, totalMarks: number): MarksPlan[] {

@@ -58,6 +58,26 @@ npm run db:seed                                # insert a sample curriculum
 Without Docker, point `DATABASE_URL` in `apps/api/.env` at any PostgreSQL instance
 (`?schema=public`) and any Redis for `REDIS_URL`.
 
+### Supabase (hosted) — connection strategy
+
+`apps/api/.env` points at Supabase. There are two hosts with different roles:
+
+| Purpose | Host | Port | Notes |
+| --- | --- | --- | --- |
+| Runtime (API server, seed/data scripts) | `xxx.pooler.supabase.com` (transaction pooler) | 6543 | PgBouncer-compatible |
+| Schema/migration ops (`prisma db push` / `db:migrate` / `db:generate`) | `xxx.supabase.com` (direct connection) | 5432 | Prisma schema engine does not work through PgBouncer; **use 5432 or it will hang** |
+
+To run a CLI/seed/script against the direct host instead of the pooler, derive it from
+the pooler URL (PowerShell):
+
+```powershell
+$url = (Get-Content -Raw apps/api/.env) -match 'DATABASE_URL="?([^"\r\n]+)' ; $env:DATABASE_URL = ($Matches[1] -replace ':\d+/(postgres)',':5432/$1') + '?connect_timeout=30'
+npm run db:push   # or any npm run db:* script
+```
+
+Long-running data scripts (e.g. `db:seed:papers`) are noticeably slower over Supabase
+than local Postgres; they log progress and are safe to re-run (idempotent).
+
 ## API
 
 - Base path: `/api/v1`

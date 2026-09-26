@@ -17,7 +17,9 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:papers": "tsx prisma/seed-papers.ts",
-    "db:embed:papers": "tsx prisma/embed-papers.ts"
+    "db:embed:papers": "tsx prisma/embed-papers.ts",
+    "db:embed:verify": "tsx prisma/embed-verify.ts",
+    "db:accept:archive": "tsx prisma/e2e-archive.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -13,6 +13,7 @@ import { UsersModule } from './users/users.module';
 import { CurriculumModule } from './curriculum/curriculum.module';
 import { QuestionsModule } from './questions/questions.module';
 import { AiModule } from './ai/ai.module';
+import { ArchiveModule } from './archive/archive.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AiModule } from './ai/ai.module';
     CurriculumModule,
     QuestionsModule,
     AiModule,
+    ArchiveModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

@@ -86,5 +86,38 @@ export const createQuestionSchema = z.object({
   topicId: z.string().min(1),
 });
 
+/**
+ * Strict structured-output contract for LLM question generation (spec §29, §34).
+ * The model returns ONE JSON object per item. IDs returned here are never
+ * trusted — the server overrides/attaches authoritative curriculum references
+ * during curriculum validation.
+ */
+export const sourceReferenceSchema = z.object({
+  type: z.enum(['CURRICULUM', 'SEE_ARCHIVE']),
+  curriculumId: z.string().min(1).optional(),
+  gradeId: z.string().min(1).optional(),
+  subjectId: z.string().min(1).optional(),
+  chapterId: z.string().min(1).optional(),
+  topicId: z.string().min(1).optional(),
+  /** SEE archive grounding: paper + page + locator. */
+  archiveId: z.string().min(1).optional(),
+  archivePageId: z.string().min(1).optional(),
+  sourceLocator: z.string().optional(),
+});
+
+export const generatedQuestionSchema = z.object({
+  questionType: questionTypeSchema,
+  question: z.object({ content: z.string().min(1).max(4000) }),
+  options: z.array(z.string().min(1)).optional(),
+  correctAnswer: z.array(z.string().min(1)).min(1),
+  explanation: z.string().min(1).max(4000),
+  difficulty: difficultySchema,
+  marks: z.number().positive().max(50),
+  hint: z.string().max(1000).optional(),
+  sourceReferences: z.array(sourceReferenceSchema).max(20).default([]),
+});
+
 export type QuestionGenerationConfigInput = z.infer<typeof questionGenerationConfigSchema>;
 export type CreateQuestionInput = z.infer<typeof createQuestionSchema>;
+export type GeneratedQuestionInput = z.infer<typeof generatedQuestionSchema>;
+export type SourceReferenceInput = z.infer<typeof sourceReferenceSchema>;

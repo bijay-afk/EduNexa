@@ -11,9 +11,17 @@ export const envSchema = z.object({
   JWT_SECRET: z.string().min(16),
   JWT_EXPIRES_IN: z.string().default('7d'),
   AI_API_KEY: z.string().optional(),
-  AI_PROVIDER: z.string().default('openai'),
+  AI_PROVIDER: z.enum(['openai', 'ollama']).default('openai'),
   AI_MODEL: z.string().default('gpt-4o-mini'),
+  AI_CHAT_BASE_URL: z.string().optional(),
   AI_EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
+  AI_EMBEDDING_BASE_URL: z.string().optional(),
+  // Production queue (BullMQ) controls for the LLM generation worker.
+  // Concurrency stays at 1 on Ollama so a single CPU GPU/CPU box is not
+  // thrashed; raise carefully after load tests (spec §17).
+  AI_CONCURRENCY: z.coerce.number().int().min(1).default(1),
+  AI_JOB_TIMEOUT_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
+  AI_MAX_QUESTIONS_PER_GENERATION: z.coerce.number().int().min(1).default(20),
   SENTRY_DSN: z.string().optional(),
 });
 

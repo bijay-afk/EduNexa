@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { QuestionType } from '@edunexa/types';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Skeleton } from '@edunexa/ui';
-import { apiRequest, getSession, fetchChapter, type ChapterRow, type TopicRow } from '@/lib/api';
+import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Skeleton } from '@edunexa/ui';
+import { apiRequest, getSession, fetchChapter, fetchGenerations, type ChapterRow, type GenerationRow, type TopicRow } from '@/lib/api';
 import { useGrade10, useSubjects } from '@/lib/queries';
 
 const QUESTION_TYPES: QuestionType[] = [
@@ -67,6 +67,13 @@ export default function QuestionGeneratorPage() {
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyVersion, setHistoryVersion] = useState(0);
+
+  const historyQuery = useQuery({
+    queryKey: ['generations', historyVersion],
+    queryFn: fetchGenerations,
+    enabled: !!getSession()?.token,
+  });
 
   const subject = useMemo(
     () => subjects.find((s) => s.id === subjectId),
@@ -192,6 +199,7 @@ export default function QuestionGeneratorPage() {
         token: session.token,
       });
       setResult(res);
+      setHistoryVersion((v) => v + 1);
       poll(res.id, session.token);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed');
@@ -453,8 +461,25 @@ export default function QuestionGeneratorPage() {
                     <p className="mt-1">
                       {result.resultCount} draft questions created{selectedChapters.length ? ` across the selected chapters` : ''}. Review them, fill in answers, and approve to build your question bank.
                     </p>
-                  ) : result.state === 'PROCESSING' || result.state === 'QUEUED' ? (
-                    <p className="mt-1 text-muted-foreground">Polling for completion…</p>
+                  ) : result.state === 'QUEUED' || result.state === 'PROCESSING' ? (
+                    <p className="mt-1 text-muted-foreground">
+                      Queued on the AI worker — this usually takes a few minutes on a local
+                      Ollama box. This page keeps polling.
+                    </p>
+                  ) : result.state === 'VALIDATING' ? (
+                    <p className="mt-1 text-muted-foreground">
+                      Retrieved archive sources — validating the generated questions…
+                    </p>
+                  ) : result.state === 'PARTIAL' ? (
+                    <p className="mt-1">
+                      {result.resultCount} draft questions created; some items were rejected
+                      during validation. Check the item rows for details.
+                    </p>
+                  ) : result.state === 'FAILED' ? (
+                    <p className="mt-1 text-destructive">
+                      Generation failed. Head to the question archive, or retry with fewer
+                      questions.
+                    </p>
                   ) : null}
                 </div>
               )}
@@ -462,6 +487,11 @@ export default function QuestionGeneratorPage() {
           </CardContent>
         </Card>
       )}
+      <GenerationHistory
+        rows={historyQuery.data ?? []}
+        loading={historyQuery.isLoading}
+        onRefresh={() => setHistoryVersion((v) => v + 1)}
+      />
     </div>
   );
 }
@@ -472,6 +502,84 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <p className="text-sm font-medium">{label}</p>
       {children}
     </div>
+  );
+}
+
+function stateBadge(rows: GenerationRow[], state: string, index: number) {
+  const variant =
+    state === 'COMPLETED'
+      ? 'default'
+      : state === 'FAILED'
+        ? 'outline'
+        : 'secondary';
+  const cls =
+    state === 'FAILED'
+      ? 'inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium border-transparent bg-destructive/10 text-destructive'
+      : undefined;
+  return (
+    <Badge key={`${state}-${index}`} variant={variant as 'default' | 'secondary' | 'outline'} className={cls}>
+      {state}
+    </Badge>
+  );
+}
+
+function GenerationHistory({
+  rows,
+  loading,
+  onRefresh,
+}: {
+  rows: GenerationRow[];
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Generation history</CardTitle>
+          <CardDescription>
+            Your recent runs — every run is audited and available in the question bank
+            review queue before publishing.
+          </CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={onRefresh} type="button">
+          Refresh
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-10 w-full" />
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No generations yet.</p>
+        ) : (
+          <ul className="divide-y">
+            {rows.map((row) => (
+              <li key={row.id} className="flex items-center justify-between gap-3 py-2">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {stateBadge(rows, row.state, 0)}
+                    <code className="text-xs text-muted-foreground">{row.id.slice(0, 8)}</code>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(row.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {row.status === 'LLM' ? 'LLM' : 'Archive extract'}
+                    {row.provider ? ` · ${row.provider}` : ''}
+                    {row.model ? ` · ${row.model}` : ''}
+                    {row.curriculumCode ? ` · ${row.curriculumCode}` : ''}
+                    {row.resultCount > 0 ? ` · ${row.resultCount} draft(s)` : ''}
+                  </p>
+                  {row.error ? (
+                    <p className="mt-1 text-xs text-destructive">{row.error}</p>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

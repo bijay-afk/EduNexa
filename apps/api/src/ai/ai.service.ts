@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiQueueService } from './ai-queue.service';
+import { AiGenerationWorker } from './ai-generation.worker';
 import { AiGenerationProcessor } from './ai-generation.processor';
+import { AiGenerationService } from './ai-generation.service';
 import {
   questionGenerationConfigSchema,
   questionSourceSchema,
@@ -14,6 +16,8 @@ export class AiService {
     private readonly prisma: PrismaService,
     private readonly queue: AiQueueService,
     private readonly processor: AiGenerationProcessor,
+    private readonly generationService: AiGenerationService,
+    private readonly worker: AiGenerationWorker,
   ) {}
 
   /**
@@ -107,7 +111,7 @@ export class AiService {
 
     const curriculum = await this.prisma.curriculum.findUnique({
       where: { id: parsed.curriculumId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, code: true },
     });
     if (!curriculum) throw new NotFoundException('Curriculum not found');
 
@@ -136,6 +140,7 @@ export class AiService {
       source: 'CURRICULUM' as const,
       curriculumId: curriculum.id,
       curriculumName: curriculum.name,
+      curriculumCode: curriculum.code,
       gradeId: parsed.gradeId,
       subjectId: subject?.id,
       chapterIds: parsed.chapterIds ?? [],
@@ -149,14 +154,35 @@ export class AiService {
    * The config is schema-validated here; curriculum/source resolution happens
    * immediately so the queue payload always carries a proven grounding.
    *
-   * ARCHIVE_EXTRACT runs synchronously (zero API keys, zero Redis): real
-   * questions are cut straight from the paper archive DB and persisted as
-   * drafts before the method returns.
+   * Dispatch (spec §16–§20, §24–§25):
+   *   - ARCHIVE_EXTRACT: runs synchronously in-process — zero API keys, real
+   *     questions are cut straight from the paper-archive DB and persisted as
+   *     DRAFT/PENDING_REVIEW questions (no AI workload).
+   *   - LLM: pushed onto the BullMQ queue and picked up by AiGenerationWorker
+   *     (concurrency 1, retries + backoff + timeout). If Redis is down the
+   *     worker is unavailable and the job degrades to a synchronous run so the
+   *     request still completes (dev convenience only).
+   * Rate/abuse guards: one active generation per teacher at a time (409), and
+   * the question count is clamped to AI_MAX_QUESTIONS_PER_GENERATION.
    */
   async enqueueGeneration(teacherId: string, config: unknown) {
     const parsed = questionGenerationConfigSchema.parse(config);
     const source = questionSourceSchema.parse(parsed.source ?? 'CURRICULUM');
     const generator = parsed.generator ?? 'ARCHIVE_EXTRACT';
+
+    const active = await this.prisma.aiGeneration.count({
+      where: { teacherId, state: { in: ['QUEUED', 'PROCESSING', 'VALIDATING'] } },
+    });
+    if (active > 0) {
+      throw new ConflictException(
+        'You already have a generation in progress. Wait for it to finish, then start another.',
+      );
+    }
+
+    // Clamp the question count so one request cannot swamp the local Ollama box.
+    const max = Math.max(process.env.AI_MAX_QUESTIONS_PER_GENERATION ? Number(process.env.AI_MAX_QUESTIONS_PER_GENERATION) : 20, 1);
+    const count = Math.min(Math.max(parsed.count ?? 10, 1), max);
+
     const grounding = await this.resolveSource({
       source,
       curriculumId: parsed.curriculumId,
@@ -168,39 +194,36 @@ export class AiService {
       archiveExamTypes: parsed.archiveExamTypes,
     });
 
-    const state = generator === 'ARCHIVE_EXTRACT' ? 'PROCESSING' : 'QUEUED';
     const generation = await this.prisma.aiGeneration.create({
       data: {
         teacherId,
-        config: { ...parsed, ...grounding, generator },
-        state,
+        config: { ...parsed, count, ...grounding, generator },
+        state: 'QUEUED',
+        curriculumCode:
+          (grounding as { curriculumCode?: string }).curriculumCode ?? null,
       },
     });
 
-    if (generator === 'ARCHIVE_EXTRACT') {
-      try {
+    try {
+      if (generator === 'ARCHIVE_EXTRACT') {
         await this.processor.process(generation.id);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Generation failed';
+      } else if (this.worker.available) {
+        await this.queue.queue.add('llm', { generationId: generation.id, generator: 'LLM' });
+      } else {
         await this.prisma.aiGeneration.update({
           where: { id: generation.id },
-          data: { state: 'FAILED', error: message },
+          data: { state: 'PROCESSING' },
         });
-        throw new BadRequestException(message);
+        await this.generationService.generate(generation.id);
       }
-      return this.prisma.aiGeneration.findUniqueOrThrow({ where: { id: generation.id } });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Generation failed';
+      await this.prisma.aiGeneration.update({
+        where: { id: generation.id },
+        data: { state: 'FAILED', error: message },
+      });
+      throw new BadRequestException(message);
     }
-
-    const job = await this.queue.queue.add('generate', {
-      generationId: generation.id,
-      teacherId,
-      config: { ...parsed, ...grounding },
-    });
-
-    await this.prisma.aiGeneration.update({
-      where: { id: generation.id },
-      data: { queueJobId: job.id },
-    });
 
     return this.prisma.aiGeneration.findUniqueOrThrow({ where: { id: generation.id } });
   }
@@ -242,30 +265,68 @@ export class AiService {
   async getGeneration(generationId: string): Promise<{
     id: string;
     state: string;
+    status: string | null;
     resultCount: number;
     createdAt: Date;
     error: string | null;
     provider: string | null;
     model: string | null;
-    items?: { id: string; questionId: string | null; state: string }[];
+    curriculumCode: string | null;
+    items?: {
+      id: string;
+      questionId: string | null;
+      state: string;
+      validationErrors: unknown;
+      validation: unknown;
+      retrievedSources: unknown;
+    }[];
   }> {
     const generation = await this.prisma.aiGeneration.findUnique({
       where: { id: generationId },
       select: {
         id: true,
         state: true,
+        status: true,
         resultCount: true,
         createdAt: true,
         error: true,
         provider: true,
         model: true,
+        curriculumCode: true,
         items: {
-          select: { id: true, questionId: true, state: true },
+          select: {
+            id: true,
+            questionId: true,
+            state: true,
+            validationErrors: true,
+            validation: true,
+            retrievedSources: true,
+          },
           orderBy: { createdAt: 'asc' },
         },
       },
     });
     if (!generation) throw new NotFoundException('Generation not found');
     return generation;
+  }
+
+  /** A teacher's recent generations for the question-bank/review trail. */
+  async listGenerations(teacherId: string) {
+    return this.prisma.aiGeneration.findMany({
+      where: { teacherId },
+      select: {
+        id: true,
+        state: true,
+        status: true,
+        resultCount: true,
+        provider: true,
+        model: true,
+        curriculumCode: true,
+        error: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
   }
 }

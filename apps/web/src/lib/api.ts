@@ -178,6 +178,367 @@ export interface Paginated<T> {
 }
 
 // ----------------------------------------------------------------------------
+// SEE archive + OCR review (v0.2 academic trust)
+// ----------------------------------------------------------------------------
+
+export type OcrState = 'PENDING' | 'OCR_COMPLETED' | 'OCR_REVIEW' | 'OCR_APPROVED' | 'OCR_REJECTED';
+export type MappingStatus = 'UNMAPPED' | 'SUGGESTED' | 'APPROVED' | 'REJECTED';
+export type ArchiveQuestionState = 'EXTRACTED' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
+export type ArchiveStatus = 'IMPORTED' | 'METADATA_REVIEW' | 'METADATA_VERIFIED' | 'REJECTED';
+
+export interface PaperRow {
+  id: string;
+  title: string;
+  subject: string;
+  subjectSlug: string;
+  examType: 'PAST' | 'GRADE_INCREMENT' | 'MODEL' | 'PREBOARD';
+  year: number | null;
+  paperYear: number | null;
+  language: string;
+  paperCode: string | null;
+  processingStatus: ArchiveStatus;
+  verifiedAt: string | null;
+  pageCount: number;
+  createdAt: string;
+  ocr: { approved: number; review: number; completed: number; pending: number; rejected: number };
+  mappedQuestions: number;
+}
+
+export interface PaperPageRow {
+  id: string;
+  pageOrder: number;
+  imageUrl: string;
+  ocrText: string | null;
+  ocrState: OcrState;
+  ocrReviewedAt: string | null;
+  _count?: { extractedQuestions: number };
+}
+
+export interface PaperDetail {
+  id: string;
+  title: string;
+  subject: string;
+  subjectSlug: string;
+  examType: string;
+  year: number | null;
+  paperYear: number | null;
+  imageDir: string;
+  language: string;
+  paperCode: string | null;
+  processingStatus: ArchiveStatus;
+  sourceUrl: string;
+  verifiedAt: string | null;
+  pages: PaperPageRow[];
+}
+
+export interface ArchiveQuestionRow {
+  id: string;
+  sourceText: string;
+  sourcePageNumber: number;
+  questionNumber: number | null;
+  marks: number | null;
+  questionType: string | null;
+  options: string[] | null;
+  subject: string;
+  examYear: number | null;
+  paperYear: number | null;
+  state: ArchiveQuestionState;
+  mappingStatus: MappingStatus;
+  subjectId: string | null;
+  chapterId: string | null;
+  topicId: string | null;
+  importedQuestionId: string | null;
+  createdAt: string;
+  paper: { id: string; title: string; examType: string };
+  page: { id: string; pageOrder: number; imageUrl: string };
+}
+
+export interface OcrRevisionRow {
+  id: string;
+  version: number;
+  ocrText: string;
+  editedById: string | null;
+  editingReason: string | null;
+  status: OcrState;
+  createdAt: string;
+}
+
+export interface PageDetail {
+  id: string;
+  pageOrder: number;
+  imageUrl: string;
+  ocrText: string | null;
+  ocrState: OcrState;
+  ocrReviewedById: string | null;
+  ocrReviewedAt: string | null;
+  reviewNote: string | null;
+  paper: {
+    id: string;
+    title: string;
+    subject: string;
+    examType: string;
+    year: number | null;
+    paperYear: number | null;
+    imageDir: string;
+    processingStatus: ArchiveStatus;
+  };
+  revisions: OcrRevisionRow[];
+}
+
+export interface ArchiveCoverage {
+  dataHealth: {
+    papers: number;
+    pages: number;
+    pagesWithOcr: number;
+    ocrApproved: number;
+    ocrInReview: number;
+    ocrPending: number;
+    extractedQuestions: number;
+    mappedQuestions: number;
+    unmappedQuestions: number;
+    approvedQuestions: number;
+  };
+  archiveSubjects: { subject: string; questions: number }[];
+  mappingQueue: {
+    byMappingStatus: { mappingStatus: MappingStatus; questions: number }[];
+    byState: { state: ArchiveQuestionState; questions: number }[];
+  };
+  coverage: {
+    totalQuestions: number;
+    mappedQuestions: number;
+    unmappedQuestions: number;
+    byExamType: { examType: string; questions: number }[];
+    byYear: { year: number | null; questions: number }[];
+    gaps: {
+      subjectId: string;
+      subjectName: string;
+      chapterId: string;
+      chapterName: string;
+    }[];
+  };
+  curriculum: {
+    gradeId: string | null;
+    subjects: {
+      id: string;
+      name: string;
+      order: number;
+      chapters: {
+        id: string;
+        name: string;
+        order: number;
+        mappedQuestions: number;
+        mappedPercent: number;
+        topics: { id: string; name: string; mapped: number }[];
+      }[];
+    }[];
+  };
+}
+
+export interface ExtractResult {
+  paperId: string;
+  created: number;
+  updated: number;
+}
+
+export const fetchArchivePapers = (params?: Record<string, string>) =>
+  apiRequest<Paginated<PaperRow>>(`/archive/papers${qs(params)}`, {
+    token: getSession()?.token,
+  });
+
+export const fetchArchivePaper = (paperId: string) =>
+  apiRequest<PaperDetail>(`/archive/papers/${paperId}`, { token: getSession()?.token });
+
+export const extractArchiveQuestions = (paperId: string) =>
+  apiRequest<ExtractResult>(`/archive/papers/${paperId}/extract`, {
+    method: 'POST',
+    token: getSession()?.token,
+  });
+
+export const fetchArchiveQuestions = (params?: Record<string, string>) =>
+  apiRequest<Paginated<ArchiveQuestionRow>>(`/archive/questions${qs(params)}`, {
+    token: getSession()?.token,
+  });
+
+export const updateArchiveQuestion = (
+  id: string,
+  body: Record<string, unknown>,
+) =>
+  apiRequest<ArchiveQuestionRow>(`/archive/questions/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+    token: getSession()?.token,
+  });
+
+export const importArchiveQuestion = (id: string, topicId?: string) =>
+  apiRequest<{ id: string }>(`/archive/questions/${id}/import`, {
+    method: 'POST',
+    body: JSON.stringify({ topicId }),
+    token: getSession()?.token,
+  });
+
+export const fetchArchivePage = (pageId: string) =>
+  apiRequest<PageDetail>(`/archive/pages/${pageId}`, { token: getSession()?.token });
+
+export const saveOcrText = (pageId: string, ocrText: string, reason?: string) =>
+  apiRequest<PageDetail>(`/archive/pages/${pageId}/ocr`, {
+    method: 'PATCH',
+    body: JSON.stringify({ ocrText, reason }),
+    token: getSession()?.token,
+  });
+
+export const approveArchivePage = (pageId: string, note?: string) =>
+  apiRequest<PaperPageRow>(`/archive/pages/${pageId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+    token: getSession()?.token,
+  });
+
+export const rejectArchivePage = (pageId: string, note: string) =>
+  apiRequest<PaperPageRow>(`/archive/pages/${pageId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+    token: getSession()?.token,
+  });
+
+export const fetchArchiveCoverage = () =>
+  apiRequest<ArchiveCoverage>('/archive/coverage', { token: getSession()?.token });
+
+function qs(params?: Record<string, string>): string {
+  if (!params) return '';
+  const search = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== '')),
+  ).toString();
+  return search ? `?${search}` : '';
+}
+
+// ----------------------------------------------------------------------------
+// Teacher question bank + AI generation (trusted content pipeline)
+// ----------------------------------------------------------------------------
+
+export type QuestionStatus =
+  | 'DRAFT'
+  | 'PENDING_REVIEW'
+  | 'IN_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'ARCHIVED';
+
+export type QuestionDifficulty = 'EASY' | 'MEDIUM' | 'HARD';
+
+export interface BankQuestion {
+  id: string;
+  topicId: string;
+  ownerId: string;
+  questionType: string;
+  content: string;
+  options: string[] | null;
+  correctAnswer: string[] | null;
+  explanation: string | null;
+  difficulty: QuestionDifficulty;
+  marks: number;
+  hint: string | null;
+  tags: string[] | null;
+  status: QuestionStatus;
+  sourceRefs: QuestionSourceRefs | null;
+  versions: number;
+  createdAt: string;
+  updatedAt: string;
+  topic: {
+    id: string;
+    name: string;
+    chapter: { id: string; name: string; subject: { id: string; name: string } };
+  };
+}
+
+export interface QuestionSourceRefs {
+  sourceType?: 'PAPER_ARCHIVE' | 'AI_GENERATED';
+  archivePaperId?: string;
+  archivePageId?: string;
+  subject?: string;
+  curriculum?: {
+    curriculumCode?: string | null;
+    curriculumName?: string | null;
+    gradeId?: string | null;
+    subjectId?: string | null;
+    chapterId?: string | null;
+    topicId?: string | null;
+  };
+  aiGenerationItemId?: string;
+  generatedAt?: string;
+  model?: string;
+  validation?: Record<string, unknown>;
+  sources?: { title?: string; pageOrder?: number; method?: string; score?: number }[];
+  requested?: Record<string, unknown>;
+  generated?: Record<string, unknown>;
+}
+
+export interface GenerationItemRow {
+  id: string;
+  questionId: string | null;
+  generatedJson: Record<string, unknown> | null;
+  validationErrors: unknown;
+  retrievedSources: unknown;
+  validation: Record<string, unknown> | null;
+  state: string;
+  promptTokens: number | null;
+  completionTokens: number | null;
+}
+
+export interface GenerationRow {
+  id: string;
+  state: string;
+  status: 'LLM' | 'ARCHIVE_EXTRACT' | null;
+  provider: string | null;
+  model: string | null;
+  curriculumCode: string | null;
+  config: Record<string, unknown> | null;
+  resultCount: number;
+  error: string | null;
+  createdAt: string;
+  items: GenerationItemRow[];
+}
+
+export const fetchBankQuestions = (params?: { status?: QuestionStatus; q?: string; page?: number; limit?: number }) => {
+  const query: Record<string, string> = {};
+  if (params?.status) query.status = params.status;
+  if (params?.q) query.q = params.q;
+  if (params?.page) query.page = String(params.page);
+  if (params?.limit) query.limit = String(params.limit);
+  return apiRequest<Paginated<BankQuestion>>(`/questions/bank${qs(query)}`, {
+    token: getSession()?.token,
+  });
+};
+
+export const fetchQuestion = (questionId: string) =>
+  apiRequest<BankQuestion>(`/questions/${questionId}`, { token: getSession()?.token });
+
+export const updateQuestion = (questionId: string, body: Record<string, unknown>) =>
+  apiRequest<BankQuestion>(`/questions/${questionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+    token: getSession()?.token,
+  });
+
+export const setQuestionStatus = (
+  questionId: string,
+  status: QuestionStatus,
+  note?: string,
+) =>
+  apiRequest<BankQuestion>(`/questions/${questionId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, note }),
+    token: getSession()?.token,
+  });
+
+export const fetchGenerations = () =>
+  apiRequest<GenerationRow[]>(`/question-generation`, { token: getSession()?.token });
+
+export const fetchGeneration = (generationId: string) =>
+  apiRequest<GenerationRow>(`/question-generation/${generationId}`, {
+    token: getSession()?.token,
+  });
+
+// ----------------------------------------------------------------------------
 // Curriculum fetchers
 // ----------------------------------------------------------------------------
 

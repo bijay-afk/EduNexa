@@ -29,8 +29,14 @@ export class AiController {
     return this.aiService.listArchivePapers();
   }
 
+  @Get()
+  @ApiOperation({ summary: 'A teacher\'s recent generations (audit trail)' })
+  getGenerations(@CurrentUser() user: AuthenticatedUser) {
+    return this.aiService.listGenerations(user.id);
+  }
+
   @Get(':id')
-  @ApiOperation({ summary: 'Poll generation status (includes generated item ids)' })
+  @ApiOperation({ summary: 'Poll generation status (includes generated item ids + validation)' })
   getGeneration(@Param('id') id: string) {
     return this.aiService.getGeneration(id);
   }

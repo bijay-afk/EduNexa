@@ -4,7 +4,7 @@
 //
 // Run with a reachable DATABASE_URL:
 //   npx tsx apps/api/prisma/seed-papers.ts
-import { PrismaClient, PaperExamType, ContentStatus } from '@prisma/client';
+import { PrismaClient, PaperExamType, ContentStatus, OcrState } from '@prisma/client';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -53,8 +53,10 @@ async function main() {
       const exists = await prisma.paperArchivePage.findUnique({
         where: { paperId_pageOrder: { paperId: record.id, pageOrder } },
       });
+      const hasOcr = !!(page.ocrText && page.ocrText.trim());
       const pageData = {
-        ocrText: page.ocrText && page.ocrText.trim() ? page.ocrText : null,
+        ocrText: hasOcr ? page.ocrText : null,
+        ocrState: hasOcr ? ('OCR_COMPLETED' as OcrState) : ('PENDING' as OcrState),
         imageUrl: page.url,
       };
       if (exists) {
@@ -65,6 +67,9 @@ async function main() {
         });
       }
       pageCount++;
+    }
+    if (paperCount % 25 === 0 || paperCount === dataset.papers.length) {
+      console.log(`seeded ${paperCount}/${dataset.papers.length} papers (${pageCount} pages)`);
     }
   }
 
@@ -98,6 +103,7 @@ async function main() {
           pageOrder: 1,
           imageUrl: pdf.url,
           ocrText: null,
+          ocrState: 'PENDING' as OcrState,
         },
       });
     }
@@ -107,11 +113,13 @@ async function main() {
     prisma.paperArchive.count(),
     prisma.paperArchivePage.count(),
     prisma.paperArchivePage.count({ where: { ocrText: { not: null } } }),
+    prisma.paperArchivePage.count({ where: { ocrState: 'OCR_APPROVED' } }),
   ]);
 
   console.log(
     `import complete. papers: ${paperCount}  pages: ${pageCount}  ` +
-      `archiveRows: ${totals[0]}  pageRows: ${totals[1]}  withOcr: ${totals[2]}`,
+      `archiveRows: ${totals[0]}  pageRows: ${totals[1]}  withOcr: ${totals[2]}  ` +
+      `ocrApproved: ${totals[3]}`,
   );
 }
 

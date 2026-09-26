@@ -63,7 +63,7 @@ export type QuestionType =
 
 export type QuestionDifficulty = 'EASY' | 'MEDIUM' | 'HARD';
 
-export type QuestionStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
+export type QuestionStatus = 'DRAFT' | 'PENDING_REVIEW' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
 
 export type Visibility = 'PUBLIC' | 'ORGANIZATION' | 'CLASS' | 'TEACHER_PRIVATE';
 

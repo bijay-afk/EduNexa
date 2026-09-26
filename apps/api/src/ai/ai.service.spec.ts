@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { prismaMock, AiServiceHarness } from '../testing/ai-service.harness';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { prismaMock, queueMock, generationServiceMock, AiServiceHarness } from '../testing/ai-service.harness';
 import { questionGenerationConfigSchema } from '@edunexa/validation';
 import { extractQuestions } from './question-extractor';
 
@@ -64,7 +64,7 @@ describe('AiService.resolveSource', () => {
     const config = validConfig({ topicIds: ['topic-1'], generator: 'LLM' });
     await service.service.enqueueGeneration('teacher-1', config);
 
-    expect(prismaMock.curriculum.findUnique).toHaveBeenCalledWith({ where: { id: 'cur-1' }, select: { id: true, name: true } });
+    expect(prismaMock.curriculum.findUnique).toHaveBeenCalledWith({ where: { id: 'cur-1' }, select: { id: true, name: true, code: true } });
     const createdConfig = (prismaMock.aiGeneration.create as Mock).mock.calls[0][0].data.config;
     expect(createdConfig.source).toBe('CURRICULUM');
     expect(createdConfig.curriculumName).toBe('Nepal Grade 10 Curriculum');
@@ -194,6 +194,75 @@ describe('AiService.resolveSource', () => {
     expect(prismaMock.question.create).toHaveBeenCalled();
     expect(prismaMock.aiGenerationItem.create).toHaveBeenCalled();
     expect(result.id).toBe('gen-1');
+  });
+});
+
+describe('AiService queue dispatch (spec §16–§20, §24–§25)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prismaMock.aiGeneration.count.mockResolvedValue(0);
+  });
+
+  function curriculumMocks() {
+    (prismaMock.curriculum.findUnique as Mock).mockResolvedValue({ id: 'cur-1', name: 'C' });
+    (prismaMock.topic.count as Mock).mockResolvedValue(1);
+  }
+
+  it('enqueues an LLM generation to BullMQ and returns QUEUED when the worker is available', async () => {
+    curriculumMocks();
+    const harness = new AiServiceHarness({ workerAvailable: true });
+
+    await harness.service.enqueueGeneration('teacher-1', validConfig({ generator: 'LLM', count: 5 }));
+
+    expect(queueMock.queue.add).toHaveBeenCalledWith('llm', {
+      generationId: 'gen-1',
+      generator: 'LLM',
+    });
+    expect(generationServiceMock.generate).not.toHaveBeenCalled();
+    const created = (prismaMock.aiGeneration.create as Mock).mock.calls[0][0].data;
+    expect(created.state).toBe('QUEUED');
+    expect(created.config.count).toBe(5);
+  });
+
+  it('runs LLM synchronously as a dev fallback when no Redis worker is available', async () => {
+    curriculumMocks();
+    const harness = new AiServiceHarness();
+
+    await harness.service.enqueueGeneration('teacher-1', validConfig({ generator: 'LLM', count: 5 }));
+
+    expect(generationServiceMock.generate).toHaveBeenCalledWith('gen-1');
+    expect(queueMock.queue.add).not.toHaveBeenCalled();
+  });
+
+  it('rejects with 409 when the teacher already has an active generation', async () => {
+    curriculumMocks();
+    const harness = new AiServiceHarness();
+    (prismaMock.aiGeneration.count as Mock).mockResolvedValue(1);
+
+    await expect(
+      harness.service.enqueueGeneration('teacher-1', validConfig({ generator: 'LLM' })),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(prismaMock.aiGeneration.create).not.toHaveBeenCalled();
+  });
+
+  it('clamps an in-range request to AI_MAX_QUESTIONS_PER_GENERATION', async () => {
+    curriculumMocks();
+    const harness = new AiServiceHarness();
+
+    await harness.service.enqueueGeneration('teacher-1', validConfig({ generator: 'LLM', count: 100 }));
+
+    const created = (prismaMock.aiGeneration.create as Mock).mock.calls[0][0].data;
+    expect(created.config.count).toBe(20);
+  });
+
+  it('leaves counts under the cap untouched', async () => {
+    curriculumMocks();
+    const harness = new AiServiceHarness();
+
+    await harness.service.enqueueGeneration('teacher-1', validConfig({ generator: 'LLM', count: 5 }));
+
+    const created = (prismaMock.aiGeneration.create as Mock).mock.calls[0][0].data;
+    expect(created.config.count).toBe(5);
   });
 });
 

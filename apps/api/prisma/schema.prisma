@@ -70,6 +70,7 @@ enum QuestionDifficulty {
 
 enum QuestionStatus {
   DRAFT
+  PENDING_REVIEW
   IN_REVIEW
   APPROVED
   REJECTED
@@ -92,6 +93,44 @@ enum BookmarkContentType {
   QUESTION
   FORMULA
   EXAMPLE
+}
+
+// ----------------------------------------------------------------------------
+// SEE archive quality (v0.2 — academic trust)
+// ----------------------------------------------------------------------------
+
+/// Lifecycle of a scanned paper's metadata (verified by a reviewer before use).
+enum ArchiveStatus {
+  IMPORTED
+  METADATA_REVIEW
+  METADATA_VERIFIED
+  REJECTED
+}
+
+/// OCR trust lifecycle for a scanned page. OCR is never automatically correct
+/// because processing "completed"; a human must review before it is approved.
+enum OcrState {
+  PENDING
+  OCR_COMPLETED
+  OCR_REVIEW
+  OCR_APPROVED
+  OCR_REJECTED
+}
+
+/// Curation state of a question extracted from the SEE archive.
+enum ArchiveQuestionState {
+  EXTRACTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+/// Curriculum-mapping trust for an extracted question.
+enum MappingStatus {
+  UNMAPPED
+  SUGGESTED
+  APPROVED
+  REJECTED
 }
 
 // ----------------------------------------------------------------------------
@@ -301,7 +340,20 @@ model PaperArchive {
   imageDir   String
   pageCount  Int              @default(0)
   status     ContentStatus    @default(PUBLISHED)
+  // --- v0.2 academic-trust metadata (verified by a human reviewer) ---
+  language   String           @default("en")
+  /// printed paper code, e.g. RE-1011'GP'
+  paperCode  String?
+  board      String?
+  paperSet   String?
+  examSession String?
+  license    String?
+  processingStatus ArchiveStatus @default(IMPORTED)
+  /// identity of the reviewer who verified the metadata (no FK relation by design)
+  verifiedById String?
+  verifiedAt   DateTime?
   pages      PaperArchivePage[]
+  extractedQuestions ArchiveQuestion[]
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 
@@ -309,6 +361,7 @@ model PaperArchive {
   @@index([subjectSlug])
   @@index([examType])
   @@index([year])
+  @@index([processingStatus])
 }
 
 model PaperArchivePage {
@@ -318,12 +371,90 @@ model PaperArchivePage {
   pageOrder Int          @default(1)
   imageUrl  String
   ocrText   String?      @db.Text
-  /// pgvector embedding of ocrText for retrieval (text-embedding-3-small / 1536)
-  embedding Unsupported("vector(1536)")?
-  createdAt DateTime     @default(now())
+  /// pgvector embedding of ocrText for retrieval. Pinned to 768 = Ollama
+  /// nomic-embed-text (the adopted embedding model, spec §41). It is also the
+  /// dimension every embedding-verify check asserts against.
+  embedding Unsupported("vector(768)")?
+  // --- v0.2 OCR trust lifecycle ---
+  ocrState       OcrState  @default(PENDING)
+  /// identity of the reviewer who last reviewed/edited this page's OCR
+  ocrReviewedById String?
+  ocrReviewedAt  DateTime?
+  reviewNote     String?
+  revisions      OcrRevision[]
+  extractedQuestions ArchiveQuestion[]
+  createdAt     DateTime     @default(now())
 
   @@unique([paperId, pageOrder])
   @@index([paperId])
+  @@index([ocrState])
+}
+
+/// Versioned correction trail for a page's OCR. Every human edit is stored,
+/// never overwritten silently, so any extracted question can be retraced.
+model OcrRevision {
+  id             String           @id @default(uuid())
+  pageId         String
+  page           PaperArchivePage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  /// 1-based; the latest revision is the current approved/working OCR.
+  version        Int
+  ocrText        String           @db.Text
+  editedById     String?
+  editingReason  String?
+  status         OcrState         @default(OCR_REVIEW)
+  createdAt      DateTime         @default(now())
+
+  @@unique([pageId, version])
+  @@index([pageId])
+}
+
+/// A question extracted from a scanned SEE paper, with full provenance to the
+/// source scan + OCR page plus optional human-verified curriculum mapping.
+model ArchiveQuestion {
+  id                 String             @id @default(uuid())
+  paperArchiveId     String
+  paper              PaperArchive       @relation(fields: [paperArchiveId], references: [id], onDelete: Cascade)
+  paperArchivePageId String
+  page               PaperArchivePage   @relation(fields: [paperArchivePageId], references: [id], onDelete: Cascade)
+  /// stable identity of the extraction (page + question ordinal + text hash)
+  sourceKey          String
+  sourceText         String             @db.Text
+  sourcePageNumber   Int
+  questionNumber     Int?
+  marks              Float?
+  questionType       QuestionType?
+  /// options when the extracted block looks like an MCQ (a)–(d)
+  options            Json?
+  /// denormalized from the parent paper for fast filtering
+  subject            String
+  subjectSlug        String
+  examType           PaperExamType
+  examYear           Int?
+  paperYear          Int?
+  extractionVersion  String             @default("v1")
+  // --- curation + mapping (human verified) ---
+  state              ArchiveQuestionState @default(EXTRACTED)
+  mappingStatus      MappingStatus      @default(UNMAPPED)
+  subjectId          String?
+  chapterId          String?
+  topicId            String?
+  mappedById         String?
+  mappedAt           DateTime?
+  /// when the question has been imported into a teacher's bank as a Question
+  importedById       String?
+  importedQuestionId String?
+  importedAt         DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@unique([paperArchivePageId, sourceKey])
+  @@index([paperArchiveId])
+  @@index([subject])
+  @@index([examType])
+  @@index([chapterId])
+  @@index([topicId])
+  @@index([mappingStatus])
+  @@index([state])
 }
 
 // ----------------------------------------------------------------------------
@@ -414,21 +545,23 @@ model QuestionBankItem {
 }
 
 model AiGeneration {
-  id          String           @id @default(uuid())
-  teacherId   String
-  teacher     User             @relation(fields: [teacherId], references: [id])
-  config      Json
-  state       GenerationState  @default(QUEUED)
-  provider    String?
-  model       String?
-  status      String?
-  error      String?
-  resultCount Int              @default(0)
-  usageMeta   Json?
-  queueJobId  String?
-  items       AiGenerationItem[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id            String            @id @default(uuid())
+  teacherId     String
+  teacher       User              @relation(fields: [teacherId], references: [id])
+  config        Json
+  state         GenerationState   @default(QUEUED)
+  provider      String?
+  model         String?
+  status        String?
+  error         String?
+  resultCount   Int               @default(0)
+  usageMeta     Json?
+  queueJobId    String?
+  /// Snapshot of the grounding curriculum code (audit trail), e.g. NEP-GRADE10.
+  curriculumCode String?
+  items         AiGenerationItem[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 }
 
 model AiGenerationItem {
@@ -438,6 +571,12 @@ model AiGenerationItem {
   questionId    String?
   generatedJson Json?
   validationErrors Json?
+  /// Grounding sources actually retrieved for this item (audit trail).
+  retrievedSources Json?
+  /// Structured validation results: curriculum / answer / difficulty / duplicate.
+  validation Json?
+  promptTokens Int?
+  completionTokens Int?
   state         String       @default("QUEUED")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt

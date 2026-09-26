@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { GraduationCap, LayoutDashboard, Library, LogOut, UserRound, Wand2 } from 'lucide-react';
+import { Archive, GraduationCap, LayoutDashboard, Library, ListTodo, LogOut, UserRound, Wand2 } from 'lucide-react';
 import { clearSession, getSession } from '@/lib/api';
 
 const nav = [
   { href: '/teacher', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/teacher/question-bank', label: 'Question bank', icon: Library },
   { href: '/teacher/question-generator', label: 'Question generator', icon: Wand2 },
+  { href: '/teacher/archive', label: 'SEE archive', icon: Archive },
+  { href: '/teacher/archive/mappings', label: 'Mapping queue', icon: ListTodo },
 ];
 
 export function TeacherShell({ children }: { children: React.ReactNode }) {
